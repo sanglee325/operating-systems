@@ -1,11 +1,11 @@
 CC = gcc
 CFLAGS = -Wall -g
 
-SOURCE = bitmap.c hash.c list.c 
+SOURCE = bitmap.c hash.c list.c testlib.c 
 TARGET = testlib
 OBJ = $(SOURCE:.c=.o)
 
-$(TARGET) : $(OBJ) bitmap.h debug.h hash.h limits.h list.h round.h
+$(TARGET) : $(OBJ) bitmap.h debug.h hash.h limits.h list.h round.h testlib.h
 		$(CC) $(CFLAGS) -o $(TARGET) $(OBJ)
 
 debug : $(TARGET)
