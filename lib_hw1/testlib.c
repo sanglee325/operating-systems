@@ -22,7 +22,7 @@ int main() {
 }
 
 void read_command(char *input_str) {
-	int i = 0, len_idx = 0;
+	int i = 0;
 	int idx = 0, word_num = 0, token_idx = 0;
 	char *command;
 	char tokenize[MAX_INPUT_LEN][MAX_INPUT_LEN] = { 0 };
@@ -60,9 +60,56 @@ void read_command(char *input_str) {
 	if(!strcmp(command, "quit")){
 		command_quit();
 	}
+	else if(!strcmp(command, "create")){
+		if(!strcmp(tokenize[1], "bitmap")){
+			create_bitmap(tokenize[2]);
+		}
+		else if(!strcmp(tokenize[1], "list")){
+			create_list(tokenize[2]);
+		}
+		else if(!strcmp(tokenize[1], "hashtable")){
+			create_list(tokenize[2]);
+		}
+	}
 
 }
 
-void command_quit(){
+void command_quit() {
+	if(list_tab_head) {
+	}
+
 	exit_flag = true;
+}
+
+void create_bitmap(char *name) {
+	
+}
+
+void create_list(char *name) {
+	struct list_table *new, *cur;
+
+	new = (struct list_table*)malloc(sizeof(struct list_table));
+	list_init(new->list);
+	strcpy(new->name, name);
+	new->next = NULL;
+
+	if(!list_tab_head) {
+		list_tab_head = new;
+	}
+	else {
+		cur = list_tab_head;
+		while(1) {
+			if(cur->next) {
+				cur = cur->next;
+			}
+			else {
+				cur->next = new;
+				break;
+			}
+		}
+	}
+}
+
+void create_hashtable(char *name) {
+	
 }
