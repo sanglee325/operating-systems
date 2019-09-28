@@ -289,9 +289,9 @@ void read_command(char *input_str) {
 		if(!target) return;
 		if(!t2) t2 = find_ds_table(tokenize[1]);
 
-		if(word_num == 2)
+		if(word_num == 3)
 			list_unique(target->list, t2->list, less_value, NULL);
-		else if(word_num == 3)
+		else if(word_num == 2)
 			list_unique(target->list, NULL, less_value, NULL);
 	}
 
@@ -351,7 +351,6 @@ struct ds_table *find_ds_table (char *name) {
 		else {
 			cur = cur->next;
 			if(cur == NULL) {
-				printf("ERROR: %s does not exists.\n", name);
 				break;
 			}
 		}
