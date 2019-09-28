@@ -306,6 +306,43 @@ void read_command(char *input_str) {
 		list_sort(target->list, less_value, NULL);
 	}
 
+	else if(!strcmp(command, "list_max")) {
+		target = find_ds_table(tokenize[1]);
+
+		if(!target) return;
+	
+		struct list_elem *max_elem = list_max(target->list, less_value, NULL);
+		struct list_item *max_item = list_entry(max_elem, struct list_item, elem);
+		printf("%d\n", max_item->data);
+	}
+
+	else if(!strcmp(command, "list_min")) {
+		target = find_ds_table(tokenize[1]);
+
+		if(!target) return;
+	
+		struct list_elem *min_elem = list_min(target->list, less_value, NULL);
+		struct list_item *min_item = list_entry(min_elem, struct list_item, elem);
+		printf("%d\n", min_item->data);
+	}
+
+	else if(!strcmp(command, "list_empty")) {
+		target = find_ds_table(tokenize[1]);
+
+		if(!target) return;
+	
+		if(list_empty(target->list)) printf("true\n");
+		else printf("false\n");
+	}
+
+	else if(!strcmp(command, "list_size")) {
+		target = find_ds_table(tokenize[1]);
+
+		if(!target) return;
+		
+		int size = list_size(target->list);
+		printf("%d\n", size);
+	}
 }
 
 void command_quit() {
