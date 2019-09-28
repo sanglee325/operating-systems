@@ -197,13 +197,17 @@ void read_command(char *input_str) {
 	}
 	
 	// list_insert_ordered.in
-	/*
 	else if(!strcmp(command, "list_insert_ordered")) {
 		target = find_ds_table(tokenize[1]);
 		if(!target) return;
+
+		int data = atoi(tokenize[2]);
+
+		struct list_item* new = malloc(sizeof(struct list_item));
+		new->data = data;
 		
+		list_insert_ordered(target->list, &(new->elem), less_value, NULL);
 	}
-	*/
 	
 	// list_swap.in
 	else if(!strcmp(command, "list_swap")) {
@@ -293,6 +297,13 @@ void read_command(char *input_str) {
 			list_unique(target->list, t2->list, less_value, NULL);
 		else if(word_num == 2)
 			list_unique(target->list, NULL, less_value, NULL);
+	}
+	else if(!strcmp(command, "list_sort")) {
+		target = find_ds_table(tokenize[1]);
+
+		if(!target) return;
+	
+		list_sort(target->list, less_value, NULL);
 	}
 
 }
