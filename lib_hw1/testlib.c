@@ -2,6 +2,7 @@
 #include "hash.h"
 #include "list.h"
 #include "testlib.h"
+#include "test_list.h"
 
 char *input_str;
 bool exit_flag = false;
@@ -29,6 +30,9 @@ void read_command(char *input_str) {
 	char tokenize[MAX_INPUT_LEN][MAX_INPUT_LEN] = { 0, };
 	bool word[MAX_INPUT_LEN] = { false };
 	
+	// variables for implementing commands
+	struct ds_table *target = NULL;
+
 	for(i = 0; i < strlen(input_str); i++) {
 		if(input_str[i] != ' ' && input_str[i] != '\n') word[i] = true;
 	}
@@ -81,7 +85,6 @@ void read_command(char *input_str) {
 
 	//list_insert.in test
 	else if(!strcmp(command, "list_insert")) {
-		struct ds_table *target = NULL;
 		int idx = atoi(tokenize[2]);
 		int data = atoi(tokenize[3]);
 
@@ -104,9 +107,8 @@ void read_command(char *input_str) {
 		list_insert(ptr, &(new->elem));
 	}
 
-	//list_frontback.in test
+	//list_frontback.in test + list_pop.in
 	else if(!strcmp(command, "list_push_back")) {
-		struct ds_table *target = NULL;
 		int data = atoi(tokenize[2]);
 
 		// find the name data structure
@@ -119,10 +121,21 @@ void read_command(char *input_str) {
 		new->data = data;
 		list_push_back(target->list, &(new->elem));	
 	}
+	else if(!strcmp(command, "list_push_front")) {
+		int data = atoi(tokenize[2]);
+
+		// find the name data structure
+		target = find_ds_table(tokenize[1]);
+		if(!target) return;
+
+		// new data to insert
+		struct list_item *new = malloc(sizeof(struct list_item));
+
+		new->data = data;
+		list_push_front(target->list, &(new->elem));	
+	}
 
 	else if(!strcmp(command, "list_front")) {
-		struct ds_table *target = NULL;
-
 		// find the name data structure
 		target = find_ds_table(tokenize[1]);
 		if(!target) return;
@@ -139,8 +152,6 @@ void read_command(char *input_str) {
 		}
 	}
 	else if(!strcmp(command, "list_back")) {
-		struct ds_table *target = NULL;
-
 		// find the name data structure
 		target = find_ds_table(tokenize[1]);
 		if(!target) return;
@@ -157,8 +168,6 @@ void read_command(char *input_str) {
 		}
 	}
 	else if(!strcmp(command, "list_pop_front")) {
-		struct ds_table *target = NULL;
-
 		// find the name data structure
 		target = find_ds_table(tokenize[1]);
 		if(!target) return;
@@ -173,8 +182,6 @@ void read_command(char *input_str) {
 
 	}
 	else if(!strcmp(command, "list_pop_back")) {
-		struct ds_table *target = NULL;
-
 		// find the name data structure
 		target = find_ds_table(tokenize[1]);
 		if(!target) return;
@@ -188,13 +195,109 @@ void read_command(char *input_str) {
 		}
 
 	}
+	
+	// list_insert_ordered.in
+	/*
+	else if(!strcmp(command, "list_insert_ordered")) {
+		target = find_ds_table(tokenize[1]);
+		if(!target) return;
+		
+	}
+	*/
+	
+	// list_swap.in
+	else if(!strcmp(command, "list_swap")) {
+		target = find_ds_table(tokenize[1]);
+		if(!target) return;
+
+		int idx_a = atoi(tokenize[2]);
+		int idx_b = atoi(tokenize[3]);
+
+		// find the name data structure
+		target = find_ds_table(tokenize[1]);
+		if(!target) return;
+		
+		if(!list_empty(target->list)) {
+			struct list_elem *a, *b;
+			a = b = list_head(target->list);
+
+			for(int i = 0; i <= idx_a; i++) 
+				a = list_next(a);
+			for(int i = 0; i <= idx_b; i++) 
+				b = list_next(b);
+			list_swap(a, b);
+		}
+	}
+	
+	// list_remove.in
+	else if(!strcmp(command, "list_remove")) {
+		target = find_ds_table(tokenize[1]);
+		if(!target) return;
+
+		int idx = atoi(tokenize[2]);
+
+		if(!list_empty(target->list)) {
+			struct list_elem *eptr = list_head(target->list);
+			struct list_item *iptr;
+			for(int i = 0; i <= idx; i++) {
+				eptr = list_next(eptr);
+			}
+			iptr = list_entry(eptr, struct list_item, elem);
+			list_remove(eptr);
+			free(iptr);
+		}
+	}
+	
+	// list_reverse.in
+	else if(!strcmp(command, "list_reverse")) {
+		target = find_ds_table(tokenize[1]);
+		if(!target) return;
+		
+		list_reverse(target->list);
+	}
+	
+	// list_splice.in
+	else if(!strcmp(command, "list_splice")) {
+		target = find_ds_table(tokenize[1]);
+		if(!target) return;
+		
+		struct ds_table* t2 = find_ds_table(tokenize[3]);
+		int idx1, idx2, idx3;
+		idx1 = atoi(tokenize[2]);
+		idx2 = atoi(tokenize[4]);
+		idx3 = atoi(tokenize[5]);
+
+		struct list_elem *ptr1, *ptr2, *ptr3;
+		ptr1 = list_head(target->list);
+		ptr2 = ptr3 = list_head(t2->list);
+
+		for(int i = 0; i <= idx1; i++) 
+			ptr1 = list_next(ptr1);
+		for(int i = 0; i <= idx2; i++) 
+			ptr2 = list_next(ptr2);
+		for(int i = 0; i <= idx3; i++) 
+			ptr3 = list_next(ptr3);
+
+		list_splice(ptr1, ptr2, ptr3);
+	}
+
+	// list_unique.in
+	else if(!strcmp(command, "list_unique")) {
+		target = find_ds_table(tokenize[1]);
+		struct ds_table* t2 = find_ds_table(tokenize[2]);
+
+		if(!target) return;
+		if(!t2) t2 = find_ds_table(tokenize[1]);
+
+		if(word_num == 2)
+			list_unique(target->list, t2->list, less_value, NULL);
+		else if(word_num == 3)
+			list_unique(target->list, NULL, less_value, NULL);
+	}
 
 }
 
 void command_quit() {
-	if(ds_tab_head) {
-	}
-
 	exit_flag = true;
 }
 
