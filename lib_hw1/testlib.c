@@ -56,14 +56,6 @@ void read_command(char *input_str) {
 
 	command = tokenize[0];
 	
-	// input token check
-	/*
-	printf("%s\n", command);
-	for(i = 0; i<idx; i++) {
-		printf("%s\n", tokenize[i]);
-	}
-	*/	
-
 	if(!strcmp(command, "quit")) {
 		command_quit();
 	}
@@ -87,6 +79,7 @@ void read_command(char *input_str) {
 		command_dumpdata(tokenize[1]);
 	}
 
+	//list_insert.in test
 	else if(!strcmp(command, "list_insert")) {
 		struct ds_table *target = NULL;
 		int idx = atoi(tokenize[2]);
@@ -109,6 +102,91 @@ void read_command(char *input_str) {
 		}
 		
 		list_insert(ptr, &(new->elem));
+	}
+
+	//list_frontback.in test
+	else if(!strcmp(command, "list_push_back")) {
+		struct ds_table *target = NULL;
+		int data = atoi(tokenize[2]);
+
+		// find the name data structure
+		target = find_ds_table(tokenize[1]);
+		if(!target) return;
+
+		// new data to insert
+		struct list_item *new = malloc(sizeof(struct list_item));
+
+		new->data = data;
+		list_push_back(target->list, &(new->elem));	
+	}
+
+	else if(!strcmp(command, "list_front")) {
+		struct ds_table *target = NULL;
+
+		// find the name data structure
+		target = find_ds_table(tokenize[1]);
+		if(!target) return;
+		
+		if(!list_empty(target->list)) {
+			struct list_elem* front;
+			struct list_item* fr_item;
+
+			front = list_front(target->list);
+			if(!front) return;
+
+			fr_item = list_entry(front, struct list_item, elem);
+			printf("%d\n", fr_item->data);
+		}
+	}
+	else if(!strcmp(command, "list_back")) {
+		struct ds_table *target = NULL;
+
+		// find the name data structure
+		target = find_ds_table(tokenize[1]);
+		if(!target) return;
+		
+		if(!list_empty(target->list)) {
+			struct list_elem* back;
+			struct list_item* b_item;
+
+			back = list_back(target->list);
+			if(!back) return;
+
+			b_item = list_entry(back, struct list_item, elem);
+			printf("%d\n", b_item->data);
+		}
+	}
+	else if(!strcmp(command, "list_pop_front")) {
+		struct ds_table *target = NULL;
+
+		// find the name data structure
+		target = find_ds_table(tokenize[1]);
+		if(!target) return;
+
+		if(!list_empty(target->list)) {
+			struct list_elem *e = list_pop_front(target->list);
+			struct list_item *tar_item;
+
+			tar_item = list_entry(e, struct list_item, elem);
+			free(tar_item);
+		}
+
+	}
+	else if(!strcmp(command, "list_pop_back")) {
+		struct ds_table *target = NULL;
+
+		// find the name data structure
+		target = find_ds_table(tokenize[1]);
+		if(!target) return;
+
+		if(!list_empty(target->list)) {
+			struct list_elem *e = list_pop_back(target->list);
+			struct list_item *tar_item;
+
+			tar_item = list_entry(e, struct list_item, elem);
+			free(tar_item);
+		}
+
 	}
 
 }
