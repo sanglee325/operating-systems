@@ -67,7 +67,7 @@ void read_command(char *input_str) {
 	if(!strcmp(command, "quit")) {
 		command_quit();
 	}
-	else if(!strcmp(command, "create")){
+	else if(!strcmp(command, "create")) {
 		if(!strcmp(tokenize[1], "bitmap")) {
 			create_bitmap(tokenize[2]);
 		}
@@ -78,9 +78,15 @@ void read_command(char *input_str) {
 			create_list(tokenize[2]);
 		}
 	}
+
+	else if(!strcmp(command, "delete")){
+		command_delete(tokenize[1]);
+	}
+
 	else if(!strcmp(command, "dumpdata")) {
 		command_dumpdata(tokenize[1]);
 	}
+
 	else if(!strcmp(command, "list_insert")) {
 		struct ds_table *target = NULL;
 		int idx = atoi(tokenize[2]);
@@ -103,7 +109,6 @@ void read_command(char *input_str) {
 		}
 		
 		list_insert(ptr, &(new->elem));
-		
 	}
 
 }
@@ -120,13 +125,15 @@ void create_bitmap(char *name) {
 }
 
 void create_list(char *name) {
-	struct ds_table *new, *cur;
+	struct ds_table *new, *cur = NULL;
 
 	new = (struct ds_table*)malloc(sizeof(struct ds_table));
+	new->list = (struct list*)malloc(sizeof(struct list));
 	list_init(new->list);
 	strcpy(new->name, name);
 	new->type = 3;
 	new->next = NULL;
+	new->prev = NULL;
 
 	if(!ds_tab_head) {
 		ds_tab_head = new;
@@ -139,6 +146,7 @@ void create_list(char *name) {
 			}
 			else {
 				cur->next = new;
+				new->prev = cur;
 				break;
 			}
 		}
@@ -153,8 +161,8 @@ struct ds_table *find_ds_table (char *name) {
 	struct ds_table *cur;
 	cur = ds_tab_head;
 
-	printf("FUNC: find_ds_table(%s)\n", name);
-
+	if(cur == NULL) return NULL;
+	
 	while(1) {
 		if(!strcmp(cur->name, name)) {
 			return cur;
@@ -173,7 +181,6 @@ struct ds_table *find_ds_table (char *name) {
 
 void command_dumpdata(char *name) {
 	struct ds_table *target = NULL;
-
 
 	target = find_ds_table(name);
 	if(target == NULL) return;
@@ -202,4 +209,74 @@ void dump_list(struct list* list) {
 		}
 		printf("\n");
 	}
+}
+
+void command_delete(char *name) {
+	struct ds_table *target = NULL;
+
+	target = find_ds_table(name);
+	if(target == NULL) return;
+
+	switch(target->type) {
+		case 1:
+			break;
+		case 2:
+			break;
+		case 3:
+			delete_list(target);
+			break;
+	}
+}
+
+void delete_list(struct ds_table* target) {
+	struct ds_table *tar_prev, *tar_next;
+	struct list_item *tar_item;
+
+	// free elements of list
+	while(!list_empty(target->list)) {
+		struct list_elem *e = list_pop_front(target->list);
+		
+		tar_item = list_entry(e, struct list_item, elem);
+		free(tar_item);
+	}
+
+	//free list
+	free(target->list);
+
+	// check for data struct table status and free it
+	// case: only one ds left
+	if(target->prev == NULL && target->next == NULL) {
+		ds_tab_head = NULL;
+		free(target);
+	}
+
+	// first element of table
+	else if(target->prev == NULL && target->next != NULL) {
+		tar_next = target->next;
+
+		ds_tab_head = target->next;
+		tar_next->prev = NULL;
+		target->next = NULL;
+		free(target);
+	}
+
+	// element in middle
+	else if(target->prev != NULL && target->next != NULL) {
+		tar_prev = target->prev;
+		tar_next = target->next;
+
+		tar_prev->next = tar_next;
+		tar_next->prev = tar_prev;
+
+		target->prev = target->next = NULL;
+		free(target);
+	}
+
+	else {
+		tar_next = target->next;
+		
+		tar_next->next = NULL;
+		target->prev = NULL;
+		free(target);
+	}		
 }

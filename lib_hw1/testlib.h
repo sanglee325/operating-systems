@@ -20,6 +20,7 @@ struct ds_table {
 
 	struct list* list;
 	struct ds_table* next;
+	struct ds_table* prev;
 };
 
 struct ds_table *ds_tab_head;
@@ -28,11 +29,13 @@ void read_command(char *input_str);
 
 void command_quit();
 void command_dumpdata(char *name);
+void command_delete(char *name);
 
 void create_bitmap(char *name);
 void create_list(char *name);
 void create_hashtable(char *name);
 
 void dump_list(struct list* list);
+void delete_list(struct ds_table* target);
 
 struct ds_table *find_ds_table (char *name);
