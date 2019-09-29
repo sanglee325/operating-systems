@@ -1,8 +1,10 @@
 #include "bitmap.h"
 #include "hash.h"
 #include "list.h"
+
 #include "testlib.h"
 #include "test_list.h"
+#include "test_hash.h"
 
 char *input_str;
 bool exit_flag = false;
@@ -30,9 +32,7 @@ void read_command(char *input_str) {
 	char tokenize[MAX_INPUT_LEN][MAX_INPUT_LEN] = { 0, };
 	bool word[MAX_INPUT_LEN] = { false };
 	
-	// variables for implementing commands
-	struct ds_table *target = NULL;
-
+	// tokenizing of input command
 	for(i = 0; i < strlen(input_str); i++) {
 		if(input_str[i] != ' ' && input_str[i] != '\n') word[i] = true;
 	}
@@ -60,6 +60,7 @@ void read_command(char *input_str) {
 
 	command = tokenize[0];
 	
+	// commands start
 	if(!strcmp(command, "quit")) {
 		command_quit();
 	}
@@ -71,7 +72,7 @@ void read_command(char *input_str) {
 			create_list(tokenize[2]);
 		}
 		else if(!strcmp(tokenize[1], "hashtable")) {
-			create_list(tokenize[2]);
+			create_hashtable(tokenize[2]);
 		}
 	}
 
@@ -83,265 +84,12 @@ void read_command(char *input_str) {
 		command_dumpdata(tokenize[1]);
 	}
 
-	//list_insert.in test
-	else if(!strcmp(command, "list_insert")) {
-		int idx = atoi(tokenize[2]);
-		int data = atoi(tokenize[3]);
-
-		// find the name data structure
-		target = find_ds_table(tokenize[1]);
-		if(!target) return;
-
-		// new data to insert
-		struct list_item *new = malloc(sizeof(struct list_item));
-
-		new->data = data;
-
-		struct list *cur = target->list;
-		struct list_elem *ptr = list_head(cur);
-
-		for(int i = 0; i <= idx; i++) {
-			ptr = list_next(ptr);
-		}
-		
-		list_insert(ptr, &(new->elem));
+	else if(!strncmp(command, "list_", 5)) {
+		command_list(command, tokenize, word_num);
 	}
 
-	//list_frontback.in test + list_pop.in
-	else if(!strcmp(command, "list_push_back")) {
-		int data = atoi(tokenize[2]);
-
-		// find the name data structure
-		target = find_ds_table(tokenize[1]);
-		if(!target) return;
-
-		// new data to insert
-		struct list_item *new = malloc(sizeof(struct list_item));
-
-		new->data = data;
-		list_push_back(target->list, &(new->elem));	
-	}
-	else if(!strcmp(command, "list_push_front")) {
-		int data = atoi(tokenize[2]);
-
-		// find the name data structure
-		target = find_ds_table(tokenize[1]);
-		if(!target) return;
-
-		// new data to insert
-		struct list_item *new = malloc(sizeof(struct list_item));
-
-		new->data = data;
-		list_push_front(target->list, &(new->elem));	
-	}
-
-	else if(!strcmp(command, "list_front")) {
-		// find the name data structure
-		target = find_ds_table(tokenize[1]);
-		if(!target) return;
-		
-		if(!list_empty(target->list)) {
-			struct list_elem* front;
-			struct list_item* fr_item;
-
-			front = list_front(target->list);
-			if(!front) return;
-
-			fr_item = list_entry(front, struct list_item, elem);
-			printf("%d\n", fr_item->data);
-		}
-	}
-	else if(!strcmp(command, "list_back")) {
-		// find the name data structure
-		target = find_ds_table(tokenize[1]);
-		if(!target) return;
-		
-		if(!list_empty(target->list)) {
-			struct list_elem* back;
-			struct list_item* b_item;
-
-			back = list_back(target->list);
-			if(!back) return;
-
-			b_item = list_entry(back, struct list_item, elem);
-			printf("%d\n", b_item->data);
-		}
-	}
-	else if(!strcmp(command, "list_pop_front")) {
-		// find the name data structure
-		target = find_ds_table(tokenize[1]);
-		if(!target) return;
-
-		if(!list_empty(target->list)) {
-			struct list_elem *e = list_pop_front(target->list);
-			struct list_item *tar_item;
-
-			tar_item = list_entry(e, struct list_item, elem);
-			free(tar_item);
-		}
-
-	}
-	else if(!strcmp(command, "list_pop_back")) {
-		// find the name data structure
-		target = find_ds_table(tokenize[1]);
-		if(!target) return;
-
-		if(!list_empty(target->list)) {
-			struct list_elem *e = list_pop_back(target->list);
-			struct list_item *tar_item;
-
-			tar_item = list_entry(e, struct list_item, elem);
-			free(tar_item);
-		}
-
-	}
-	
-	// list_insert_ordered.in
-	else if(!strcmp(command, "list_insert_ordered")) {
-		target = find_ds_table(tokenize[1]);
-		if(!target) return;
-
-		int data = atoi(tokenize[2]);
-
-		struct list_item* new = malloc(sizeof(struct list_item));
-		new->data = data;
-		
-		list_insert_ordered(target->list, &(new->elem), less_value, NULL);
-	}
-	
-	// list_swap.in
-	else if(!strcmp(command, "list_swap")) {
-		target = find_ds_table(tokenize[1]);
-		if(!target) return;
-
-		int idx_a = atoi(tokenize[2]);
-		int idx_b = atoi(tokenize[3]);
-
-		// find the name data structure
-		target = find_ds_table(tokenize[1]);
-		if(!target) return;
-		
-		if(!list_empty(target->list)) {
-			struct list_elem *a, *b;
-			a = b = list_head(target->list);
-
-			for(int i = 0; i <= idx_a; i++) 
-				a = list_next(a);
-			for(int i = 0; i <= idx_b; i++) 
-				b = list_next(b);
-			list_swap(a, b);
-		}
-	}
-	
-	// list_remove.in
-	else if(!strcmp(command, "list_remove")) {
-		target = find_ds_table(tokenize[1]);
-		if(!target) return;
-
-		int idx = atoi(tokenize[2]);
-
-		if(!list_empty(target->list)) {
-			struct list_elem *eptr = list_head(target->list);
-			struct list_item *iptr;
-			for(int i = 0; i <= idx; i++) {
-				eptr = list_next(eptr);
-			}
-			iptr = list_entry(eptr, struct list_item, elem);
-			list_remove(eptr);
-			free(iptr);
-		}
-	}
-	
-	// list_reverse.in
-	else if(!strcmp(command, "list_reverse")) {
-		target = find_ds_table(tokenize[1]);
-		if(!target) return;
-		
-		list_reverse(target->list);
-	}
-	
-	// list_splice.in
-	else if(!strcmp(command, "list_splice")) {
-		target = find_ds_table(tokenize[1]);
-		if(!target) return;
-		
-		struct ds_table* t2 = find_ds_table(tokenize[3]);
-		int idx1, idx2, idx3;
-		idx1 = atoi(tokenize[2]);
-		idx2 = atoi(tokenize[4]);
-		idx3 = atoi(tokenize[5]);
-
-		struct list_elem *ptr1, *ptr2, *ptr3;
-		ptr1 = list_head(target->list);
-		ptr2 = ptr3 = list_head(t2->list);
-
-		for(int i = 0; i <= idx1; i++) 
-			ptr1 = list_next(ptr1);
-		for(int i = 0; i <= idx2; i++) 
-			ptr2 = list_next(ptr2);
-		for(int i = 0; i <= idx3; i++) 
-			ptr3 = list_next(ptr3);
-
-		list_splice(ptr1, ptr2, ptr3);
-	}
-
-	// list_unique.in
-	else if(!strcmp(command, "list_unique")) {
-		target = find_ds_table(tokenize[1]);
-		struct ds_table* t2 = find_ds_table(tokenize[2]);
-
-		if(!target) return;
-		if(!t2) t2 = find_ds_table(tokenize[1]);
-
-		if(word_num == 3)
-			list_unique(target->list, t2->list, less_value, NULL);
-		else if(word_num == 2)
-			list_unique(target->list, NULL, less_value, NULL);
-	}
-	else if(!strcmp(command, "list_sort")) {
-		target = find_ds_table(tokenize[1]);
-
-		if(!target) return;
-	
-		list_sort(target->list, less_value, NULL);
-	}
-
-	else if(!strcmp(command, "list_max")) {
-		target = find_ds_table(tokenize[1]);
-
-		if(!target) return;
-	
-		struct list_elem *max_elem = list_max(target->list, less_value, NULL);
-		struct list_item *max_item = list_entry(max_elem, struct list_item, elem);
-		printf("%d\n", max_item->data);
-	}
-
-	else if(!strcmp(command, "list_min")) {
-		target = find_ds_table(tokenize[1]);
-
-		if(!target) return;
-	
-		struct list_elem *min_elem = list_min(target->list, less_value, NULL);
-		struct list_item *min_item = list_entry(min_elem, struct list_item, elem);
-		printf("%d\n", min_item->data);
-	}
-
-	else if(!strcmp(command, "list_empty")) {
-		target = find_ds_table(tokenize[1]);
-
-		if(!target) return;
-	
-		if(list_empty(target->list)) printf("true\n");
-		else printf("false\n");
-	}
-
-	else if(!strcmp(command, "list_size")) {
-		target = find_ds_table(tokenize[1]);
-
-		if(!target) return;
-		
-		int size = list_size(target->list);
-		printf("%d\n", size);
+	else if(!strncmp(command, "hash_", 5)) {
+		command_hash(command, tokenize, word_num);
 	}
 }
 
@@ -350,7 +98,6 @@ void command_quit() {
 }
 
 void create_bitmap(char *name) {
-	
 }
 
 void create_list(char *name) {
@@ -383,6 +130,33 @@ void create_list(char *name) {
 }
 
 void create_hashtable(char *name) {
+	struct ds_table *new, *cur = NULL;
+
+	new = (struct ds_table*)malloc(sizeof(struct ds_table));
+	new->hash = (struct hash*)malloc(sizeof(struct hash));
+	hash_init(new->hash, hash_value_elem, less_value_hash, NULL);
+	strcpy(new->name, name);
+	new->type = 2;
+	new->next = NULL;
+	new->prev = NULL;
+
+	if(!ds_tab_head) {
+		ds_tab_head = new;
+	}
+	else {
+		cur = ds_tab_head;
+		while(1) {
+			if(cur->next) {
+				cur = cur->next;
+			}
+			else {
+				cur->next = new;
+				new->prev = cur;
+				break;
+			}
+		}
+	}
+	
 	
 }
 
@@ -417,6 +191,7 @@ void command_dumpdata(char *name) {
 		case 1:
 			break;
 		case 2:
+			dump_hash(target->hash);
 			break;
 		case 3:
 			dump_list(target->list);
@@ -439,6 +214,23 @@ void dump_list(struct list* list) {
 	}
 }
 
+void dump_hash(struct hash* hash) {
+	if(hash_empty(hash))
+		return;
+	else {
+		struct hash_iterator *iter;
+		hash_first(iter, hash);
+
+		while(hash_next(iter)) {
+			struct hash_item *item;
+			item = hash_entry(hash_cur(iter), struct hash_item, elem);
+			
+			printf("%d ", item->data);
+		}
+		printf("\n");
+	}
+}
+
 void command_delete(char *name) {
 	struct ds_table *target = NULL;
 
@@ -449,6 +241,7 @@ void command_delete(char *name) {
 		case 1:
 			break;
 		case 2:
+			delete_hash(target);
 			break;
 		case 3:
 			delete_list(target);
@@ -457,7 +250,6 @@ void command_delete(char *name) {
 }
 
 void delete_list(struct ds_table* target) {
-	struct ds_table *tar_prev, *tar_next;
 	struct list_item *tar_item;
 
 	// free elements of list
@@ -470,6 +262,22 @@ void delete_list(struct ds_table* target) {
 
 	//free list
 	free(target->list);
+	delete_ds_table(target);
+}
+
+void delete_hash(struct ds_table* target) {
+	struct hash_item *tar_item;
+
+	// free elements of hash
+	hash_destroy(target->hash, h_hash_free); 
+
+	//free hash
+	free(target->hash);
+	delete_ds_table(target);
+}
+
+void delete_ds_table(struct ds_table* target) {
+	struct ds_table *tar_prev, *tar_next;
 
 	// check for data struct table status and free it
 	// case: only one ds left
@@ -507,4 +315,5 @@ void delete_list(struct ds_table* target) {
 		target->prev = NULL;
 		free(target);
 	}		
+
 }

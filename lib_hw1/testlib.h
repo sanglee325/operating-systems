@@ -3,11 +3,21 @@
 #include <string.h>
 #include <stdbool.h>
 
+#include "list.h"
+#include "hash.h"
+#include "bitmap.h"
+
 #define MAX_INPUT_LEN 100
 
 // struct of list
 struct list_item {
 	struct list_elem elem;
+	int data;
+};
+
+// struct of hash
+struct hash_item {
+	struct hash_elem elem;
 	int data;
 };
 
@@ -19,6 +29,7 @@ struct ds_table {
 	int type;
 
 	struct list* list;
+	struct hash* hash;
 	struct ds_table* next;
 	struct ds_table* prev;
 };
@@ -36,6 +47,9 @@ void create_list(char *name);
 void create_hashtable(char *name);
 
 void dump_list(struct list* list);
+void dump_hash(struct hash* hash);
 void delete_list(struct ds_table* target);
+void delete_hash(struct ds_table* target);
+void delete_ds_table(struct ds_table* target);
 
 struct ds_table *find_ds_table (char *name);
