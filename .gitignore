@@ -1,0 +1,9 @@
+# Object files
+*.o
+
+# vscode setting
+.vscode
+
+# tar files
+*.tar
+*.tar.gz
