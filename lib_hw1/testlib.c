@@ -218,12 +218,12 @@ void dump_hash(struct hash* hash) {
 	if(hash_empty(hash))
 		return;
 	else {
-		struct hash_iterator *iter;
-		hash_first(iter, hash);
+		struct hash_iterator iter;
+		hash_first(&iter, hash);
 
-		while(hash_next(iter)) {
+		while(hash_next(&iter)) {
 			struct hash_item *item;
-			item = hash_entry(hash_cur(iter), struct hash_item, elem);
+			item = hash_entry(hash_cur(&iter), struct hash_item, elem);
 			
 			printf("%d ", item->data);
 		}
@@ -266,8 +266,6 @@ void delete_list(struct ds_table* target) {
 }
 
 void delete_hash(struct ds_table* target) {
-	struct hash_item *tar_item;
-
 	// free elements of hash
 	hash_destroy(target->hash, h_hash_free); 
 

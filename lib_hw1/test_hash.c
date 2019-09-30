@@ -32,4 +32,16 @@ void command_hash(char *command, char tokenize[MAX_INPUT_LEN][MAX_INPUT_LEN], in
 
 		hash_insert(target->hash, &(new->elem));
 	}
+
+	else if(!strcmp(command, "hash_delete")) {
+		int data = atoi(tokenize[2]);
+
+		target = find_ds_table(tokenize[1]);
+		if(!target) return;
+
+		struct hash_item *new = malloc(sizeof(struct hash_item));
+		new->data = data;
+
+		hash_delete(target->hash, &(new->elem));
+	}
 }
