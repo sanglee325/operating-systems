@@ -105,9 +105,20 @@ void command_hash(char *command, char tokenize[MAX_INPUT_LEN][MAX_INPUT_LEN], in
 		new->data = data;
 		hash_replace(target->hash, &(new->elem));
 	}
-}
 
-// requirement
-unsigned hash_int_2(int i) {
+	else if(!strcmp(command, "hash_find")) {
+		target = find_ds_table(tokenize[1]);
+		if(!target) return;
 
+		struct hash_item *item = malloc(sizeof(struct hash_item));
+		item->data = atoi(tokenize[2]);
+		
+		struct hash_elem* e =NULL;
+		e = hash_find(target->hash, &(item->elem));
+		if(e) {
+			struct hash_item *hitem = hash_entry(e, struct hash_item, elem);
+			printf("%d\n", hitem->data);
+		}
+		free(item);
+	}
 }
