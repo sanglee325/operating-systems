@@ -93,4 +93,21 @@ void command_hash(char *command, char tokenize[MAX_INPUT_LEN][MAX_INPUT_LEN], in
 
 		hash_clear(target->hash, NULL);
 	}
+
+	else if(!strcmp(command, "hash_replace")) {
+		target = find_ds_table(tokenize[1]);
+		if(!target) return;
+
+		int data = atoi(tokenize[2]);
+		struct hash_item* new;
+		
+		new = (struct hash_item*)malloc(sizeof(struct hash_item));
+		new->data = data;
+		hash_replace(target->hash, &(new->elem));
+	}
+}
+
+// requirement
+unsigned hash_int_2(int i) {
+
 }

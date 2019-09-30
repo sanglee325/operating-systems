@@ -12,3 +12,6 @@ void hash_act_tri(struct hash_elem *a,void *aux);
 
 void command_hash(char *command, char tokenize[MAX_INPUT_LEN][MAX_INPUT_LEN], int word_num);
 void h_hash_free(struct hash_elem *e, void *aux);
+
+// implemented as requirement
+unsigned hash_int_2(int i);
