@@ -374,3 +374,21 @@ bitmap_dump (const struct bitmap *b)
   hex_dump (0, b->bits, byte_cnt (b->bit_cnt)/2, false);
 }
 
+/* requirement */
+
+struct bitmap *bitmap_expand(struct bitmap *bitmap, int size) {
+	size_t prev_size;
+
+	if(!bitmap) return NULL;
+
+	prev_size = bitmap_size(bitmap);
+	bitmap->bit_cnt = prev_size + size;
+	bitmap->bits = realloc(bitmap->bits, byte_cnt(bitmap->bit_cnt));
+
+	if(!bitmap->bits) {
+		return NULL;
+	}
+
+	bitmap_set_multiple(bitmap, prev_size, size, false);
+	return bitmap;
+}
