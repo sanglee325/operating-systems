@@ -5,6 +5,7 @@
 #include "testlib.h"
 #include "test_list.h"
 #include "test_hash.h"
+#include "test_bitmap.h"
 
 char *input_str;
 bool exit_flag = false;
@@ -66,7 +67,7 @@ void read_command(char *input_str) {
 	}
 	else if(!strcmp(command, "create")) {
 		if(!strcmp(tokenize[1], "bitmap")) {
-			create_bitmap(tokenize[2]);
+			create_bitmap(tokenize[2], atoi(tokenize[3]));
 		}
 		else if(!strcmp(tokenize[1], "list")) {
 			create_list(tokenize[2]);
@@ -91,13 +92,42 @@ void read_command(char *input_str) {
 	else if(!strncmp(command, "hash_", 5)) {
 		command_hash(command, tokenize, word_num);
 	}
+
+	else if(!strncmp(command, "bitmap_", 7)) {
+		command_bitmap(command, tokenize, word_num);
+	}
 }
 
 void command_quit() {
 	exit_flag = true;
 }
 
-void create_bitmap(char *name) {
+void create_bitmap(char *name, int bit_cnt) {
+	struct ds_table *new, *cur = NULL;
+
+	new = (struct ds_table*)malloc(sizeof(struct ds_table));
+	new->bitmap = bitmap_create(bit_cnt);
+	strcpy(new->name, name);
+	new->type = 1;
+	new->next = NULL;
+	new->prev = NULL;
+
+	if(!ds_tab_head) {
+		ds_tab_head = new;
+	}
+	else {
+		cur = ds_tab_head;
+		while(1) {
+			if(cur->next) {
+				cur = cur->next;
+			}
+			else {
+				cur->next = new;
+				new->prev = cur;
+				break;
+			}
+		}
+	}
 }
 
 void create_list(char *name) {
@@ -189,6 +219,7 @@ void command_dumpdata(char *name) {
 
 	switch(target->type) {
 		case 1:
+			dump_bitmap(target->bitmap);
 			break;
 		case 2:
 			dump_hash(target->hash);
@@ -231,6 +262,14 @@ void dump_hash(struct hash* hash) {
 	}
 }
 
+void dump_bitmap(struct bitmap* bitmap) {
+	for(int i = 0; i < bitmap_size(bitmap); i++) {
+		if(bitmap_test(bitmap, i)) printf("1");
+		else printf("0");
+	}
+	printf("\n");
+}
+
 void command_delete(char *name) {
 	struct ds_table *target = NULL;
 
@@ -239,6 +278,7 @@ void command_delete(char *name) {
 
 	switch(target->type) {
 		case 1:
+			delete_bitmap(target);
 			break;
 		case 2:
 			delete_hash(target);
@@ -271,6 +311,12 @@ void delete_hash(struct ds_table* target) {
 
 	//free hash
 	free(target->hash);
+	delete_ds_table(target);
+}
+
+
+void delete_bitmap(struct ds_table* target) {
+	bitmap_destroy(target->bitmap);
 	delete_ds_table(target);
 }
 

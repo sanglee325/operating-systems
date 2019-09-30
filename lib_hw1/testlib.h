@@ -30,6 +30,8 @@ struct ds_table {
 
 	struct list* list;
 	struct hash* hash;
+	struct bitmap* bitmap;
+	
 	struct ds_table* next;
 	struct ds_table* prev;
 };
@@ -42,14 +44,17 @@ void command_quit();
 void command_dumpdata(char *name);
 void command_delete(char *name);
 
-void create_bitmap(char *name);
+void create_bitmap(char *name, int bit_cnt);
 void create_list(char *name);
 void create_hashtable(char *name);
 
 void dump_list(struct list* list);
 void dump_hash(struct hash* hash);
+void dump_bitmap(struct bitmap* bitmap);
+
 void delete_list(struct ds_table* target);
 void delete_hash(struct ds_table* target);
+void delete_bitmap(struct ds_table* target);
 void delete_ds_table(struct ds_table* target);
 
 struct ds_table *find_ds_table (char *name);
