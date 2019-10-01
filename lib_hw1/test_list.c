@@ -21,6 +21,29 @@ void list_swap(struct list_elem *a, struct list_elem *b) {
 	b->next = swap_ab;
 }
 
+void list_shuffle(struct list* list) {
+	int times, idx1, idx2;
+	int size = list_size(list);
+
+	srand(time(NULL));
+
+	times = rand()%20 + 5;
+
+	for(int i = 0; i < times; i++){
+		idx1 = rand()%size;
+		idx2 = rand()%size;
+		// printf("idx1: %d idx2: %d\n", idx1, idx2);
+
+		struct list_elem* e1 = list_begin(list);
+		struct list_elem* e2 = list_begin(list);
+		for(int j = 0; j < idx1; j++)
+			e1 = list_next(e1);
+		for(int j = 0; j < idx2; j++)
+			e2 = list_next(e2);
+		list_swap(e1, e2);
+	}
+}
+
 bool less_value_list (const struct list_elem *a, const struct list_elem *b,
              void *aux) {
 	struct list_item *item1 = list_entry(a, struct list_item, elem);
@@ -249,7 +272,6 @@ void command_list(char *command, char tokenize[MAX_INPUT_LEN][MAX_INPUT_LEN], in
 	}
 	else if(!strcmp(command, "list_sort")) {
 		target = find_ds_table(tokenize[1]);
-
 		if(!target) return;
 	
 		list_sort(target->list, less_value_list, NULL);
@@ -257,7 +279,6 @@ void command_list(char *command, char tokenize[MAX_INPUT_LEN][MAX_INPUT_LEN], in
 
 	else if(!strcmp(command, "list_max")) {
 		target = find_ds_table(tokenize[1]);
-
 		if(!target) return;
 	
 		struct list_elem *max_elem = list_max(target->list, less_value_list, NULL);
@@ -267,7 +288,6 @@ void command_list(char *command, char tokenize[MAX_INPUT_LEN][MAX_INPUT_LEN], in
 
 	else if(!strcmp(command, "list_min")) {
 		target = find_ds_table(tokenize[1]);
-
 		if(!target) return;
 	
 		struct list_elem *min_elem = list_min(target->list, less_value_list, NULL);
@@ -277,7 +297,6 @@ void command_list(char *command, char tokenize[MAX_INPUT_LEN][MAX_INPUT_LEN], in
 
 	else if(!strcmp(command, "list_empty")) {
 		target = find_ds_table(tokenize[1]);
-
 		if(!target) return;
 	
 		if(list_empty(target->list)) printf("true\n");
@@ -286,11 +305,16 @@ void command_list(char *command, char tokenize[MAX_INPUT_LEN][MAX_INPUT_LEN], in
 
 	else if(!strcmp(command, "list_size")) {
 		target = find_ds_table(tokenize[1]);
-
 		if(!target) return;
 		
 		int size = list_size(target->list);
 		printf("%d\n", size);
 	}
 
+	else if(!strcmp(command, "list_shuffle")) {
+		target = find_ds_table(tokenize[1]);
+		if(!target) return;
+		
+		list_shuffle(target->list);
+	}
 }
