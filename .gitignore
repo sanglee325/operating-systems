@@ -10,3 +10,7 @@
 
 # etc
 list_shuffle.in
+*.result
+*.output
+Score.txt
+testlib
