@@ -11,6 +11,7 @@ bool less_value_hash (const struct hash_elem *a, const struct hash_elem *b, void
 unsigned hash_value_elem(const struct hash_elem *e, void *aux) {
 	struct hash_item *item = hash_entry(e, struct hash_item, elem);
 	return hash_int(item->data); 
+	//return hash_int_2(item->data); 
 }
 
 void h_hash_free(struct hash_elem *e, void *aux) {
@@ -121,4 +122,10 @@ void command_hash(char *command, char tokenize[MAX_INPUT_LEN][MAX_INPUT_LEN], in
 		}
 		free(item);
 	}
+}
+
+// implemented as requirement
+unsigned hash_int_2(int i) {
+	i = (i + 3) % 17;
+	return hash_bytes(&i, sizeof i);
 }
