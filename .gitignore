@@ -6,7 +6,6 @@
 
 # tar files
 *.tar
-*.tar.gz
 
 # etc
 list_shuffle.in
