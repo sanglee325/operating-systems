@@ -18,8 +18,15 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 
+#include "threads/malloc.h"
+#include "threads/synch.h"
+
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
+
+/* implemented functions */
+void parse_arg(const char *src, char dst[][50], int *argc);
+void push_arg_stack(char argv[][50], int argc, void **esp);
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
@@ -30,6 +37,12 @@ process_execute (const char *file_name)
 {
   char *fn_copy;
   tid_t tid;
+  char args[50][50];
+  int tmp = 0;
+
+  struct file* file = NULL;
+
+  //if(!is_user_vaddr((void*)file_name)) return -1;
 
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
@@ -38,10 +51,24 @@ process_execute (const char *file_name)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
 
+  parse_arg(file_name, args, &tmp);
+  file_name = args[0];
+
+  file = filesys_open(file_name);
+  if(file == NULL)
+  {
+	  file_close(file);
+	  return TID_ERROR;
+  }
+  file_close(file);
+  
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+
   if (tid == TID_ERROR)
-    palloc_free_page (fn_copy); 
+	  palloc_free_page (fn_copy); 
+
+  //return tid;
   return tid;
 }
 
@@ -59,6 +86,7 @@ start_process (void *file_name_)
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
+  
   success = load (file_name, &if_.eip, &if_.esp);
 
   /* If load failed, quit. */
@@ -86,13 +114,51 @@ start_process (void *file_name_)
    This function will be implemented in problem 2-2.  For now, it
    does nothing. */
 int
-process_wait (tid_t child_tid UNUSED) 
+process_wait (tid_t child_tid UNUSED)
 {
-  return -1;
+	/*
+  struct list_elem *e;
+  struct thread *parent_t = thread_current();
+  struct thread *child_t = NULL;
+  int exit_status = -1;
+  struct list *l = &(parent_t->child);
+  if(child_tid == TID_ERROR) return exit_status;
+
+  for(e = list_head(l); e != list_end(l); e = list_next(e)) {
+	  child_t = list_entry(e, struct thread, child_elem);
+
+	  if(child_t->tid == child_tid) {
+		  sema_down(&child_t->sema_wait);
+		  exit_status = child_t->exit_status;
+
+		  list_remove(&child_t);
+		  sema_up(&child_t->sema_exit);
+		  break;
+	  }
+  }
+  
+  if(child_t == NULL) exit_status = -1;
+*/
+	struct list_elem *e;
+	struct thread *t = NULL;
+	int exit_status = -1;
+	for(e = list_begin(&(thread_current()->child)); e != list_end(&(thread_current()->child));
+			e = list_next(e)) {
+		t = list_entry(e, struct thread, child_elem);
+		if (child_tid == t->tid) {
+			sema_down(&(t->child_lock));
+			exit_status = t->exit_status;
+			list_remove(&(t->child_elem));
+			sema_up(&(t->mem_lock));
+			return exit_status;
+		}   
+	}
+//	while(1);
+	return -1;
 }
 
 /* Free the current process's resources. */
-void
+	void
 process_exit (void)
 {
   struct thread *cur = thread_current ();
@@ -114,6 +180,8 @@ process_exit (void)
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
+  sema_up(&(cur->child_lock));
+  sema_down(&(cur->mem_lock));
 }
 
 /* Sets up the CPU for running user code in the current
@@ -215,11 +283,20 @@ load (const char *file_name, void (**eip) (void), void **esp)
   bool success = false;
   int i;
 
+  /* implemented variables */
+  int argc = 0;
+  char argv[50][50] = { { 0, } };
+
+  /* write codes here! */
+  parse_arg(file_name, argv, &argc);
+  file_name = argv[0];
+
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create ();
   if (t->pagedir == NULL) 
     goto done;
   process_activate ();
+
 
   /* Open executable file. */
   file = filesys_open (file_name);
@@ -301,9 +378,14 @@ load (const char *file_name, void (**eip) (void), void **esp)
         }
     }
 
+
   /* Set up stack. */
   if (!setup_stack (esp))
     goto done;
+
+  /* file_name NULL exeception...? */
+  //hex_dump(*esp, *esp, 100, true);
+  push_arg_stack(argv, argc, esp);
 
   /* Start address. */
   *eip = (void (*) (void)) ehdr.e_entry;
@@ -359,6 +441,7 @@ validate_segment (const struct Elf32_Phdr *phdr, struct file *file)
      could quite likely panic the kernel by way of null pointer
      assertions in memcpy(), etc. */
   if (phdr->p_vaddr < PGSIZE)
+  //if(phdr->p_offset < PGSIZE)
     return false;
 
   /* It's okay. */
@@ -426,6 +509,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 
 /* Create a minimal stack by mapping a zeroed page at the top of
    user virtual memory. */
+  // esp setting function 
 static bool
 setup_stack (void **esp) 
 {
@@ -463,3 +547,92 @@ install_page (void *upage, void *kpage, bool writable)
   return (pagedir_get_page (th->pagedir, upage) == NULL
           && pagedir_set_page (th->pagedir, upage, kpage, writable));
 }
+
+
+/* implemented functions */
+void
+parse_arg(const char *src, char dst[][50], int *argc)
+{
+  /* tokenizing input, strtok is defined dont_use_strtok */
+  char *token, *ptr;
+  int idx = 0;
+  char copy_src[256] = { 0, };
+
+  strlcpy(copy_src, src, strlen(src)+1);
+
+ // printf("[testing]src: %s\n", src); //XXX
+
+  token = strtok_r(copy_src, " \n", &ptr);
+  //token = strtok_r(src, " \n", &ptr);
+ // printf("[testing]token: %s\n", token);
+  while (token)
+  {
+    strlcpy(dst[idx], token, 50);
+//	printf("[testing]dst[%d]: %s\n", idx, dst[idx]);
+    token = strtok_r(NULL, " \n", &ptr);
+    idx++;
+  }
+
+  /*
+  for(i=0;i<idx;i++)
+	  printf("%s\n", dst[i]);*/
+  *argc = idx;
+}
+
+
+void 
+push_arg_stack(char argv[][50], int argc, void **esp) 
+{
+  int i, k;
+  int length, word_align;
+  int tot_len = 0; // used for calc word align
+  char* esp_address[50]; // save argv addresses
+
+  /* push string data*/
+  for(i = argc - 1; i >= 0; i--) {
+    length = strlen(argv[i]) + 1;
+    tot_len += length;
+    *esp -= length;
+    esp_address[i] = *esp;
+	for(k = 0; k < length - 1; k++) {
+		**(uint8_t **)esp = argv[i][k];
+		*esp += 1;
+	}
+	**(uint8_t **)esp = '\0';
+	*esp -= (length - 1);
+  }
+
+
+  /* push word align */
+  word_align = 4 - (tot_len % 4);
+ 
+  if(word_align == 4) word_align = 0;
+  for(i = 0; i < word_align; i++) {
+    *esp -= 1;
+	**(uint8_t **)esp = 0;
+  }
+
+  /* convention, NULL pointer sentinel */
+  *esp -= 4;
+  **(uint32_t**)esp = 0;
+
+  /* push address of string data */
+  for(i = argc - 1; i >= 0; i--) {
+    *esp -= 4;
+    **(uint32_t**)esp = esp_address[i];
+  }
+  *esp -= 4;
+  **(uint32_t**)esp = *esp + 4;
+
+  /* insert argc */
+  *esp -= 4;
+  **(uint32_t**)esp = argc;
+
+  /* insert return address */
+  *esp -= 4;
+  **(uint32_t**)esp = 0;
+
+  /* for debugging */
+ // hex_dump(0x20101234, *esp, 100, true);
+}
+
