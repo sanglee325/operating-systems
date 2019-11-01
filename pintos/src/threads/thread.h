@@ -94,14 +94,20 @@ struct thread
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
 
+	/* Implemented */
+	struct thread* parent_t;			/* Parent thread */
+	struct list child_list;				/* List of child */
+	struct list_elem child_elem;		/* Element of child list */
+
+	struct semaphore sema_exit;
+	struct semaphore sema_load;
+	bool load_status;					/* Status of memory loaded */
+	int exit_status;					/* Status when exit is called */
+
+
 #ifdef USERPROG
 	/* Owned by userprog/process.c. */
 	uint32_t *pagedir;                  /* Page directory. */
-	struct semaphore child_lock;
-	struct semaphore mem_lock;
-	struct list child;
-	struct list_elem child_elem;
-	int exit_status;
 #endif
 
     /* Owned by thread.c. */

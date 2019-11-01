@@ -206,6 +206,13 @@ thread_create (const char *name, int priority,
 
   intr_set_level (old_level);
 
+  t->parent_t = running_thread();
+  t->load_status = false;
+  t->exit_status = -1;
+  sema_init(&(t->sema_load), 0); 
+  sema_init(&(t->sema_exit), 0); 
+  list_push_back(&(running_thread()->child_list), &(t->child_elem));
+
   /* Add to run queue. */
   thread_unblock (t);
 
@@ -471,12 +478,7 @@ init_thread (struct thread *t, const char *name, int priority)
   t->magic = THREAD_MAGIC;
   list_push_back (&all_list, &t->allelem);
 
-#ifdef USERPROG
-  sema_init(&(t->child_lock), 0); 
-  sema_init(&(t->mem_lock), 0);  /* new */
-  list_init(&(t->child));
-  list_push_back(&(running_thread()->child), &(t->child_elem));
-#endif
+  list_init(&(t->child_list));
 
 }
 

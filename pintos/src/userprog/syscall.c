@@ -26,8 +26,8 @@ int syscall_read(int fd, void *buffer, unsigned size);
 int syscall_write(int fd, const void *buffer, unsigned size);
 
 /* additional system calls */
-int fibonacci(int n);
-int sum_of_four_int(int a, int b, int c, int d);
+int syscall_fibonacci(int n);
+int syscall_sum_of_four_int(int a, int b, int c, int d);
 
 bool check_valid(const void* uaddr);
 
@@ -53,7 +53,7 @@ syscall_handler (struct intr_frame *f)
 		break;
 	case SYS_EXIT: 	                 /* Terminate this process. */
 		if (!check_valid(f->esp + 4)) syscall_exit(-1);
-		else syscall_exit(*(uint32_t *)(f->esp + 4)); //16
+		else syscall_exit(*(uint32_t *)(f->esp + 4)); 
 		break;
 	case SYS_EXEC:                   /* Start another process. */
 		if (!check_valid(f->esp + 4) || 
@@ -108,6 +108,20 @@ syscall_handler (struct intr_frame *f)
 	case SYS_ISDIR:                  /* Tests if a fd represents a directory. */
 		break;
 	case SYS_INUMBER:                /* Returns the inode number for a fd. */
+		break;
+
+	/* additional system call */
+	case SYS_FIBO:					/* Returns Nth value of fibonacci sequence. */
+		if (!check_valid(f->esp + 4)) syscall_exit(-1);
+		else f->eax = syscall_fibonacci((int)*(uint32_t *)(f->esp + 4)); 
+		break;
+	case SYS_SUM_FOUR:				/* Returns the sum of four. */
+		if (!check_valid(f->esp + 4) || !check_valid(f->esp + 8) 
+				|| !check_valid(f->esp + 12) || !check_valid(f->esp + 16)) 
+			syscall_exit(-1);
+		else f->eax = syscall_sum_of_four_int((int)*(uint32_t *)(f->esp + 4), 
+				(int)*(uint32_t *)(f->esp + 8), (int*)*(uint32_t *)(f->esp + 12), 
+				(int*)*(uint32_t *)(f->esp + 16));
 		break;
 	default:
 		thread_exit();
@@ -168,6 +182,27 @@ int syscall_write(int fd, const void *buffer, unsigned size) {
 }
 
 /* additional system calls */
-int fibonacci(int n);
-int sum_of_four_int(int a, int b, int c, int d);
+int syscall_fibonacci(int n) {
+	int i;
+	int x = 0, y = 1;
+	int fibo;
+
+	if(n == 0)
+		fibo = x;
+	else if (n == 1)
+		fibo = y;
+	else {
+		fibo = x;
+		for(i = 1; i < n; i++) {
+			fibo = x + y;
+			x = y;
+			y = fibo;
+		}
+	}
+
+	return fibo;
+}
+int syscall_sum_of_four_int(int a, int b, int c, int d) {
+	return a + b + c + d;
+}
 

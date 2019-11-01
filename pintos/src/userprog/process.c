@@ -27,6 +27,8 @@ static bool load (const char *cmdline, void (**eip) (void), void **esp);
 /* implemented functions */
 void parse_arg(const char *src, char dst[][50], int *argc);
 void push_arg_stack(char argv[][50], int argc, void **esp);
+struct thread *get_child_thread(int pid);
+int remove_child_thread(struct thread *child_t);
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
@@ -42,7 +44,6 @@ process_execute (const char *file_name)
 
   struct file* file = NULL;
 
-  //if(!is_user_vaddr((void*)file_name)) return -1;
 
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
@@ -68,7 +69,6 @@ process_execute (const char *file_name)
   if (tid == TID_ERROR)
 	  palloc_free_page (fn_copy); 
 
-  //return tid;
   return tid;
 }
 
@@ -88,6 +88,7 @@ start_process (void *file_name_)
   if_.eflags = FLAG_IF | FLAG_MBS;
   
   success = load (file_name, &if_.eip, &if_.esp);
+  thread_current()->load_status = success;
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
@@ -116,45 +117,16 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED)
 {
-	/*
-  struct list_elem *e;
-  struct thread *parent_t = thread_current();
-  struct thread *child_t = NULL;
-  int exit_status = -1;
-  struct list *l = &(parent_t->child);
-  if(child_tid == TID_ERROR) return exit_status;
+	int ret = -1;
+	struct thread *child_thread;
+	child_thread = get_child_thread(child_tid);
 
-  for(e = list_head(l); e != list_end(l); e = list_next(e)) {
-	  child_t = list_entry(e, struct thread, child_elem);
+	if(child_thread == NULL) ret = TID_ERROR;
+	else ret = remove_child_thread(child_thread);
 
-	  if(child_t->tid == child_tid) {
-		  sema_down(&child_t->sema_wait);
-		  exit_status = child_t->exit_status;
 
-		  list_remove(&child_t);
-		  sema_up(&child_t->sema_exit);
-		  break;
-	  }
-  }
-  
-  if(child_t == NULL) exit_status = -1;
-*/
-	struct list_elem *e;
-	struct thread *t = NULL;
-	int exit_status = -1;
-	for(e = list_begin(&(thread_current()->child)); e != list_end(&(thread_current()->child));
-			e = list_next(e)) {
-		t = list_entry(e, struct thread, child_elem);
-		if (child_tid == t->tid) {
-			sema_down(&(t->child_lock));
-			exit_status = t->exit_status;
-			list_remove(&(t->child_elem));
-			sema_up(&(t->mem_lock));
-			return exit_status;
-		}   
-	}
 //	while(1);
-	return -1;
+	return ret;
 }
 
 /* Free the current process's resources. */
@@ -180,8 +152,8 @@ process_exit (void)
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
-  sema_up(&(cur->child_lock));
-  sema_down(&(cur->mem_lock));
+  sema_up(&(cur->sema_load));
+  sema_down(&(cur->sema_exit));
 }
 
 /* Sets up the CPU for running user code in the current
@@ -634,5 +606,36 @@ push_arg_stack(char argv[][50], int argc, void **esp)
 
   /* for debugging */
  // hex_dump(0x20101234, *esp, 100, true);
+}
+
+struct
+thread *get_child_thread(int pid)
+{
+	struct list_elem *e;
+	struct thread *t = NULL;
+	struct list *thread_list = &thread_current()->child_list;
+
+	for(e = list_begin(thread_list); e != list_end(thread_list);
+			e = list_next(e)) {
+		t = list_entry(e, struct thread, child_elem);
+		if (pid == t->tid && t->parent_t == thread_current()) {
+			break;
+		}   
+	}
+
+	return t;
+}
+
+int
+remove_child_thread(struct thread *child_t) 
+{
+	int exit_status;
+
+	sema_down(&(child_t->sema_load));
+	exit_status = child_t->exit_status;
+	list_remove(&(child_t->child_elem));
+	sema_up(&(child_t->sema_exit));
+
+	return exit_status;
 }
 
