@@ -45,4 +45,8 @@ bool readdir (int fd, char name[READDIR_MAX_LEN + 1]);
 bool isdir (int fd);
 int inumber (int fd);
 
+/* additional system call */
+int fibonacci(int n);
+int sum_of_four_int(int a, int b, int c, int d);
+
 #endif /* lib/user/syscall.h */
