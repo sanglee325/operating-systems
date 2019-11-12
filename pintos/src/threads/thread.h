@@ -103,7 +103,7 @@ struct thread
 	struct semaphore sema_load;
 	bool load_status;					/* Status of memory loaded */
 	int exit_status;					/* Status when exit is called */
-
+	
 
 #ifdef USERPROG
 	/* Owned by userprog/process.c. */
@@ -112,6 +112,8 @@ struct thread
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
+
+	struct file *fd[128];
   };
 
 /* If false (default), use round-robin scheduler.
