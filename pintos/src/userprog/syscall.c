@@ -22,7 +22,7 @@ static void syscall_handler (struct intr_frame *);
 /* implemeted functions */
 /* project 1 */
 void syscall_halt(void);
-void syscall_exit(int status);
+//void syscall_exit(int status);
 pid_t syscall_exec(const char* cmd_line);
 int syscall_wait(pid_t pid);
 int syscall_read(int fd, void *buffer, unsigned size);
@@ -55,7 +55,6 @@ syscall_init (void)
 static void
 syscall_handler (struct intr_frame *f) 
 {
-  int arg[20];
 //  printf ("system call!\n");
 //  printf("syscall: %d\n", *(uint32_t*)(f->esp));
 //  hex_dump(f->esp, f->esp, 200, true);
@@ -158,8 +157,8 @@ syscall_handler (struct intr_frame *f)
 				|| !check_valid(f->esp + 12) || !check_valid(f->esp + 16)) 
 			syscall_exit(-1);
 		else f->eax = syscall_sum_of_four_int((int)*(uint32_t *)(f->esp + 4), 
-				(int)*(uint32_t *)(f->esp + 8), (int*)*(uint32_t *)(f->esp + 12), 
-				(int*)*(uint32_t *)(f->esp + 16));
+				(int)*(uint32_t *)(f->esp + 8), (int)*(uint32_t *)(f->esp + 12), 
+				(int)*(uint32_t *)(f->esp + 16));
 		break;
 	default:
 		thread_exit();
@@ -198,13 +197,14 @@ int syscall_read(int fd, void *buffer, unsigned size) {
 	struct file *fp;
 
 	if(!check_fd_value(fd)) return ret;
-	//if(!check_valid(buffer) || !check_valid(buffer+size))
-	if(is_kernel_vaddr(buffer))
+	if(!check_valid(buffer) || !check_valid(buffer+size))
+	//if(is_kernel_vaddr(buffer))
 	//if (buffer >= PHYS_BASE)
 		syscall_exit(-1);
 
+	lock_acquire(&filesys_lock);
 	if(fd == 0) {
-		for(i = 0; i < size; i++) {
+		for(i = 0; i < (int)size; i++) {
 			*((char*) buffer + i) = input_getc();
 		}
 		ret = i;
@@ -212,14 +212,15 @@ int syscall_read(int fd, void *buffer, unsigned size) {
 
 	else if(fd >= 2) {
 		fp = thread_current()->fd[fd];
-		if (fp == NULL) return ret;
-
-		else {
-			lock_acquire(&filesys_lock);
-			ret = file_read(fp, buffer, size);
+		if (fp == NULL) {
 			lock_release(&filesys_lock);
+			return ret;
+		}
+		else {
+			ret = file_read(fp, buffer, size);
 		}
 	}
+	lock_release(&filesys_lock);
 
 	return ret;
 
@@ -231,28 +232,27 @@ int syscall_write(int fd, const void *buffer, unsigned size) {
 	struct file *fp;
 
 	if(!check_fd_value(fd)) return ret;
-	//if(!check_valid(buffer) || !check_valid(buffer+size))
-	if(is_kernel_vaddr(buffer))
+	if(!check_valid(buffer) || !check_valid(buffer+size))
+	//if(is_kernel_vaddr(buffer))
 		syscall_exit(-1);
 
+	lock_acquire(&filesys_lock);
 	if(fd == 1) {
-		/*
-		for(i = 0; i < size; i++) {
-			printf("%c",*((char*) buffer + 4 + i));
-		}*/
 		putbuf(buffer, size);
 		ret = size;
 	}
 
 	else if(fd >= 2) {
 		fp = thread_current()->fd[fd];
-		if (fp == NULL) return ret;
-		else {
-			lock_acquire(&filesys_lock);
-			ret = file_write(fp, buffer, size);
+		if (fp == NULL) {
 			lock_release(&filesys_lock);
+			return ret;
+		}
+		else {
+			ret = file_write(fp, buffer, size);
 		}
 	}
+	lock_release(&filesys_lock);
 
 	return ret;
 }
@@ -300,14 +300,19 @@ int syscall_open(const char *file) {
 	if(!check_valid(file)) 
 		syscall_exit(-1);
 
+	lock_acquire(&filesys_lock);
 	f = filesys_open(file);
-	if(f == NULL) 
+	if(f == NULL) {
+		lock_release(&filesys_lock);
 		return -1;
+	}
 	else {
-		lock_acquire(&filesys_lock);
 		while(thread_current()->fd[idx]) {
 			idx++;
-			if(idx > 127 || idx < 0) return -1;
+			if(idx > 127 || idx < 0) {
+				lock_release(&filesys_lock);
+				return -1;
+			}
 		}
 		thread_current()->fd[idx] = f;
 
@@ -317,8 +322,8 @@ int syscall_open(const char *file) {
 		else {
 			file_allow_write(f);
 		}
-		lock_release(&filesys_lock);
 	}
+	lock_release(&filesys_lock);
 
 	return idx;
 }

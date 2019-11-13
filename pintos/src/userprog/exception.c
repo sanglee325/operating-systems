@@ -5,7 +5,12 @@
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 
+#include "threads/palloc.h"
+#include "threads/vaddr.h"
 #include "userprog/syscall.h"
+#include "lib/user/syscall.h"
+
+#include "pagedir.h"
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
@@ -150,11 +155,34 @@ page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
+  /*
+  if(!user || !is_user_vaddr(fault_addr)) {
+  	f->eip = f->eax;
+	f->eax = 0xffffffff;
+	syscall_exit(-1);
+  }
+
+  if(not_present || write) {
+	  syscall_exit(-1);
+  }*/
+
+  uint8_t *new;
+  static void *new_size = (uint8_t *)PHYS_BASE - PGSIZE*2;
+  if(not_present && write && user && is_user_vaddr(fault_addr)) {
+	  if(pg_round_up(fault_addr) <= PHYS_BASE - (1<<23))
+		  syscall_exit(-1);
+	  else {
+		  new = palloc_get_page(PAL_USER + PAL_ZERO);
+
+		  if(!new) syscall_exit(-1);
+		  else pagedir_set_page(thread_current()->pagedir, new_size, new, true);
+	  }
+	  new_size -= PGSIZE;
+  }
+  else syscall_exit(-1);
   /* To implement virtual memory, delete the rest of the function
      body, and replace it with code that brings in the page to
      which fault_addr refers. */
- // if (!write)
-	  syscall_exit(-1);
   printf ("Page fault at %p: %s error %s page in %s context.\n",
           fault_addr,
           not_present ? "not present" : "rights violation",

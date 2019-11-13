@@ -61,16 +61,16 @@ process_execute(const char *file_name)
 	//printf("testing:file_name: %s\n", file_name);////////////////////////
 	if (file == NULL)
 	{
-		printf("testing: file NULL\n");
-		//file_close(file);
+		//printf("testing: file NULL\n");
+		file_close(file);
 		return -1;
 	}
 	file_close(file);
 
 	/* Create a new thread to execute FILE_NAME. */
-//	printf("testing:before create thread\n");////////////////////////
 	tid = thread_create(file_name, PRI_DEFAULT, start_process, fn_copy);
-//	printf("testing:tid = %s -> %d\n", file_name, tid);//////////////////
+
+	sema_down(&thread_current()->sema_lock);
 
 	if (tid == TID_ERROR)
 		palloc_free_page(fn_copy);
@@ -102,6 +102,7 @@ start_process(void *file_name_)
 
 	/* If load failed, quit. */
 	palloc_free_page(file_name);
+	sema_up(&thread_current()->parent_t->sema_lock);
 	if (!success)
 		thread_exit();
 
@@ -159,7 +160,7 @@ process_exit(void)
 		pagedir_activate(NULL);
 		pagedir_destroy(pd);
 	}
-
+/*
 	int i = 0;
 	for(i = 2; i < 128; i++) {
 		if(cur->fd[i] == NULL) continue;
@@ -167,6 +168,7 @@ process_exit(void)
 			syscall_close(cur->fd[i]);
 		}
 	}
+	*/
 	//printf("p_exit\nthread:%d [BEFORE]sema_up: %d\n", cur->tid, cur->status);
 	sema_up(&(cur->sema_load));
 	sema_down(&(cur->sema_exit));
