@@ -206,13 +206,6 @@ thread_create (const char *name, int priority,
 
   intr_set_level (old_level);
 
-  t->parent_t = running_thread();
-  t->load_status = false;
-  t->exit_status = -1;
-  sema_init(&(t->sema_load), 0); 
-  sema_init(&(t->sema_exit), 0); 
-  list_push_back(&(running_thread()->child_list), &(t->child_elem));
-
   /* Add to run queue. */
   thread_unblock (t);
 
@@ -484,7 +477,16 @@ init_thread (struct thread *t, const char *name, int priority)
 	  t->fd[i] = NULL;
   }
 
+
+  t->parent_t = running_thread();
+  t->load_status = false;
+  t->exit_status = -1;
+  sema_init(&(t->sema_load), 0); 
+  sema_init(&(t->sema_exit), 0); 
+  sema_init(&(t->sema_lock), 0);
+
   list_init(&(t->child_list));
+  list_push_back(&(running_thread()->child_list), &(t->child_elem));
 
 }
 
