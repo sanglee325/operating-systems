@@ -42,6 +42,7 @@ int syscall_fibonacci(int n);
 int syscall_sum_of_four_int(int a, int b, int c, int d);
 
 bool check_valid(const void* uaddr);
+bool check_fd_value(const int fd);
 
 struct lock filesys_lock;
 
