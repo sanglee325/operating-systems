@@ -155,16 +155,17 @@ page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
-  /*
   if(!user || !is_user_vaddr(fault_addr)) {
+	//printf("testing: page_fault 1\n");
   	f->eip = f->eax;
 	f->eax = 0xffffffff;
 	syscall_exit(-1);
   }
 
   if(not_present || write) {
+	//printf("testing: page_fault 2\n");
 	  syscall_exit(-1);
-  }*/
+  }
 
   uint8_t *new;
   static void *new_size = (uint8_t *)PHYS_BASE - PGSIZE*2;
