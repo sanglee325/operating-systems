@@ -94,26 +94,27 @@ struct thread
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
 
-	
+    /* Implemented */
+    struct thread* parent_t;			/* Parent thread */
+    struct list child_list;				/* List of child */
+    struct list_elem child_elem;		/* Element of child list */
+
+    struct semaphore sema_exit;
+    struct semaphore sema_load;
+    struct semaphore sema_lock;
+    bool load_status;					/* Status of memory loaded */
+    int exit_status;					/* Status when exit is called */
+
 
 #ifdef USERPROG
-	/* Owned by userprog/process.c. */
-	uint32_t *pagedir;                  /* Page directory. */
-	/* Implemented */
-	struct thread* parent_t;			/* Parent thread */
-	struct list child_list;				/* List of child */
-	struct list_elem child_elem;		/* Element of child list */
-	struct semaphore sema_exit;
-	struct semaphore sema_load;
-	struct semaphore sema_lock;
-	bool load_status;					/* Status of memory loaded */
-	int exit_status;					/* Status when exit is called */
+    /* Owned by userprog/process.c. */
+    uint32_t *pagedir;                  /* Page directory. */
 #endif
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
-	struct file *fd[128];
 
+    struct file *fd[128];
   };
 
 /* If false (default), use round-robin scheduler.
