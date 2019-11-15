@@ -6,6 +6,15 @@
 #include <stdint.h>
 #include "threads/synch.h" //?
 
+#include "filesys/off_t.h"
+
+struct file {
+	struct inode *inode;
+	off_t pos;
+	bool deny_write;
+};
+
+
 /* States in a thread's life cycle. */
 enum thread_status
   {
@@ -95,16 +104,15 @@ struct thread
     struct list_elem elem;              /* List element. */
 
     /* Implemented */
-    struct thread* parent_t;			/* Parent thread */
-    struct list child_list;				/* List of child */
-    struct list_elem child_elem;		/* Element of child list */
+    struct thread* parent_t;		/* Parent thread */
+    struct list child_list;		/* List of child */
+    struct list_elem child_elem;	/* Element of child list */
 
     struct semaphore sema_exit;
     struct semaphore sema_load;
     struct semaphore sema_lock;
-    bool load_status;					/* Status of memory loaded */
-    int exit_status;					/* Status when exit is called */
-
+    bool load_status;			/* Status of memory loaded */
+    int exit_status;			/* Status when exit is called */
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
@@ -113,7 +121,6 @@ struct thread
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
-
     struct file *fd[128];
   };
 

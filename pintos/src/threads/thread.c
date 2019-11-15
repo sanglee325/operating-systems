@@ -478,7 +478,6 @@ init_thread (struct thread *t, const char *name, int priority)
   }
   t->parent_t = running_thread();
   t->load_status = false;
-  t->exit_status = -1;
   sema_init(&(t->sema_load), 0); 
   sema_init(&(t->sema_exit), 0); 
   sema_init(&(t->sema_lock), 0); 
