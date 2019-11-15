@@ -42,7 +42,6 @@ int syscall_fibonacci(int n);
 int syscall_sum_of_four_int(int a, int b, int c, int d);
 
 bool check_valid(const void* uaddr);
-bool check_fd_value(const int fd);
 
 struct lock filesys_lock;
 
@@ -74,7 +73,6 @@ syscall_handler (struct intr_frame *f)
 		if (!check_valid(f->esp + 4) || 
 				!check_valid((const char*)*(uint32_t*)(f->esp + 4))) syscall_exit(-1);
 		else f->eax = syscall_exec((const char*)*(uint32_t*)(f->esp + 4));
-		//else f->eax = syscall_exec(*(const char**)(f->esp + 4));
 		break;
 	case SYS_WAIT:                   /* Wait for a child process to die. */
 		if (!check_valid(f->esp + 4)) syscall_exit(-1);
@@ -180,12 +178,22 @@ void syscall_halt(void) {
 	shutdown_power_off();
 }
 void syscall_exit(int status) {
+	int i;
 	struct thread *cur = thread_current();
 	printf("%s: exit(%d)\n", cur->name, status);
 	thread_current()->exit_status = status;
+
+	for (i = 2; i < 128; i++) {
+		if (cur->fd[i] != NULL) {
+			syscall_close(i);
+		}
+	}
+
 	thread_exit();
 }
 pid_t syscall_exec(const char* cmd_line) {
+	if (!thread_current()->load_status)
+		return TID_ERROR;
 	return process_execute(cmd_line);
 }
 int syscall_wait(pid_t pid) {
@@ -341,10 +349,14 @@ unsigned syscall_tell(int fd) {
 	return file_tell(thread_current()->fd[fd]);
 }
 void syscall_close(int fd) {
+	struct file *fp;
+	
 	if(!check_fd_value(fd)) return;
 	if(thread_current()->fd[fd] == NULL)
+		//return;
 		syscall_exit(-1);
-	file_close(thread_current()->fd[fd]);
+	fp = thread_current()->fd[fd];
 	thread_current()->fd[fd] = NULL;
+	file_close(fp);
 }
 
