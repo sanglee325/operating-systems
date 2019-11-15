@@ -20,14 +20,17 @@
 
 #include "threads/malloc.h"
 #include "threads/synch.h"
+#include "userprog/syscall.h"
 
 static thread_func start_process NO_RETURN;
 static bool load(const char *cmdline, void(**eip) (void), void **esp);
 
 /* implemented functions */
 /* project 1 */
-void parse_arg(const char *src, char dst[][50], int *argc);
-void push_arg_stack(char argv[][50], int argc, void **esp);
+void parse_arg(char *src, char *dest);
+void push_arg_stack(char *file_name, void **esp);
+//void parse_arg(const char *src, char dst[][50], int *argc);
+//void push_arg_stack(char argv[][50], int argc, void **esp);
 struct thread *get_child_thread(int pid);
 int remove_child_thread(struct thread *child_t);
 
@@ -42,9 +45,10 @@ process_execute(const char *file_name)
 	tid_t tid;
 	char args[50][50];
 	int tmp = 0;
+	struct list_elem *e;
+	struct thread *t;
 
 	struct file* file = NULL;
-
 
 	/* Make a copy of FILE_NAME.
 	   Otherwise there's a race between the caller and load(). */
@@ -54,11 +58,17 @@ process_execute(const char *file_name)
 		return TID_ERROR;
 	strlcpy(fn_copy, file_name, PGSIZE);
 
-	parse_arg(file_name, args, &tmp);
-	file_name = args[0];
+	//parse_arg(file_name, args, &tmp);
+	//parse_arg(file_name, cmd_name);
+	//file_name = args[0];
+	char copy_file[256] = { 0, };
+	char *ptr = NULL, *token = NULL;
 
-	file = filesys_open(file_name);
-	//printf("testing:file_name: %s\n", file_name);////////////////////////
+	strlcpy(copy_file, file_name, PGSIZE);
+	token = strtok_r(copy_file, " \n\t\r", &ptr);
+
+	file = filesys_open(token);
+	//printf("testing:file_name: %s\n", token);////////////////////////
 	if (file == NULL)
 	{
 		//printf("testing: file NULL\n");
@@ -68,13 +78,21 @@ process_execute(const char *file_name)
 	file_close(file);
 
 	/* Create a new thread to execute FILE_NAME. */
-	tid = thread_create(file_name, PRI_DEFAULT, start_process, fn_copy);
+	tid = thread_create(token, PRI_DEFAULT, start_process, fn_copy);
 
 	sema_down(&thread_current()->sema_lock);
 
-	if (tid == TID_ERROR)
+	if (tid == TID_ERROR) {
 		palloc_free_page(fn_copy);
+		return tid;
+	}
 
+	for (e = list_begin(&thread_current()->child_list); e != list_end(&thread_current()->child_list); e = list_next(e)) {
+		t = list_entry(e, struct thread, child_elem);
+		if ((t->exit_status == -1) && !(t->load_status)) {
+			return process_wait(tid);
+		}
+	}
 	return tid;
 }
 
@@ -87,15 +105,11 @@ start_process(void *file_name_)
 	struct intr_frame if_;
 	bool success;
 
-//	if (file_name_ != NULL) printf("testing:filename %s\n", file_name_);//////////////////
-//	else printf("testing:start_process filename NULL\n");///////////////////////////////
 	/* Initialize interrupt frame and load executable. */
 	memset(&if_, 0, sizeof if_);
 	if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
 	if_.cs = SEL_UCSEG;
 	if_.eflags = FLAG_IF | FLAG_MBS;
-
-//	printf("testing:before load\n");////////////////////////////////////////////
 
 	success = load(file_name, &if_.eip, &if_.esp);
 	thread_current()->load_status = success;
@@ -104,7 +118,8 @@ start_process(void *file_name_)
 	palloc_free_page(file_name);
 	sema_up(&thread_current()->parent_t->sema_lock);
 	if (!success)
-		thread_exit();
+		syscall_exit(-1);
+		//thread_exit();
 
 	/* Start the user process by simulating a return from an
 	   interrupt, implemented by intr_exit (in
@@ -160,15 +175,6 @@ process_exit(void)
 		pagedir_activate(NULL);
 		pagedir_destroy(pd);
 	}
-/*
-	int i = 0;
-	for(i = 2; i < 128; i++) {
-		if(cur->fd[i] == NULL) continue;
-		else {
-			syscall_close(cur->fd[i]);
-		}
-	}
-	*/
 	//printf("p_exit\nthread:%d [BEFORE]sema_up: %d\n", cur->tid, cur->status);
 	sema_up(&(cur->sema_load));
 	sema_down(&(cur->sema_exit));
@@ -281,8 +287,8 @@ load(const char *file_name, void(**eip) (void), void **esp)
 
 	/* write codes here! */
 	//if(file_name != NULL) printf("testing: %s\n", file_name);/////////////////
-	parse_arg(file_name, argv, &argc);
-	file_name = argv[0];
+	//parse_arg(file_name, argv, &argc);
+	//file_name = argv[0];
 
 	/* Allocate and activate page directory. */
 	t->pagedir = pagedir_create();
@@ -290,7 +296,20 @@ load(const char *file_name, void(**eip) (void), void **esp)
 		goto done;
 	process_activate();
 
+	char *token[50], ptr;
+	int num = 0;
+	token[num] = strtok_r(file_name, " ", &ptr);
 
+	while(1)
+	{
+		if(token[num] == NULL)
+			break;
+		num++;
+		token[num] = strtok_r(NULL, " ", &ptr);
+	}
+	file_name = token[0];
+
+	//printf("testing: load: file_name: %s\n", file_name);
 	/* Open executable file. */
 	file = filesys_open(file_name);
 	if (file == NULL)
@@ -377,10 +396,47 @@ load(const char *file_name, void(**eip) (void), void **esp)
 		goto done;
 
 	/* file_name NULL exeception...? */
-	//hex_dump(*esp, *esp, 100, true);
-	push_arg_stack(argv, argc, esp);
+	//push_arg_stack(argv, argc, esp);
+	//push_arg_stack(file_name, esp);
+	//printf("[testing]num: %d\n", num);
+	int length, word_align, tot_len = 0;
+	uint32_t esp_address[50];
 
-	/* Start address. */
+	for(i = num - 1; i >= 0; i--) {
+		length = strlen(token[i]) + 1;
+		*esp -= length;
+		tot_len += length;		
+		esp_address[i] = (uint32_t)*esp;
+		//printf("address: %x\n", esp_address[i]);
+		memcpy(*esp, token[i], length);
+		if(tot_len % 4 != 0)
+			*esp -= (uint32_t) *esp % 4;
+	}
+
+	/* convention, NULL pointer sentinel */
+	*esp -= 4;
+	**(uint32_t**)esp = 0;
+
+	/* push address of string data */
+	for (i = num - 1; i >= 0; i--) {
+		*esp -= 4;
+		**(uint32_t**)esp = esp_address[i];
+	}
+	*esp -= 4;
+	**(uint32_t**)esp = *esp + 4;
+
+	/* insert argc */
+	*esp -= 4;
+	**(uint32_t**)esp = num;
+
+	/* insert return address */
+	*esp -= 4;
+	**(uint32_t**)esp = 0;
+
+
+	//hex_dump(*esp, *esp, 100, true);
+
+	/*	Start address. */
 	*eip = (void(*) (void)) ehdr.e_entry;
 
 	success = true;
@@ -538,21 +594,19 @@ install_page(void *upage, void *kpage, bool writable)
 }
 
 
-/* implemented functions */
+/* implemented functions 
 void
 parse_arg(const char *src, char dst[][50], int *argc)
 {
-	/* tokenizing input, strtok is defined dont_use_strtok */
+	// tokenizing input, strtok is defined dont_use_strtok 
 	char *token, *ptr;
 	int idx = 0;
 	char copy_src[256] = { 0, };
 
 	strlcpy(copy_src, src, strlen(src) + 1);
 
-	// printf("[testing]src: %s\n", src); //XXX
 
 	token = strtok_r(copy_src, " \n", &ptr);
-	//token = strtok_r(src, " \n", &ptr);
    // printf("[testing]token: %s\n", token);
 	while (token)
 	{
@@ -562,71 +616,94 @@ parse_arg(const char *src, char dst[][50], int *argc)
 		idx++;
 	}
 
-	/*
-	for(i=0;i<idx;i++)
-		printf("%s\n", dst[i]);*/
 	*argc = idx;
 }
+*/
 
+void parse_arg(char *src, char *dest) {
+	char *ptr;
+	int cnt=0;
+	dest[cnt]=strtok_r(src," ",&ptr);
+	while(1)
+	{
+		if(dest[cnt]==NULL)
+			break;
+		cnt++;
+		dest[cnt]=strtok_r(NULL," ",&ptr);
+	}
+	/*
+	   int i;
+	   strlcpy(dest, src, strlen(src) + 1);
+	   for (i = 0; dest[i] != '\0' && dest[i] != ' '; i++);
+	   dest[i] = '\0';
+	   */
+}
 
-void
-push_arg_stack(char argv[][50], int argc, void **esp)
-{
-	int i, k;
-	int length, word_align;
-	int tot_len = 0; // used for calc word align
-	char* esp_address[50]; // save argv addresses
+void push_arg_stack(char *file_name, void **esp) {
+	char ** argv;
+	int argc;
+	int total_len;
+	char stored_file_name[256];
+	char *token;
+	char *last;
+	int i;
+	int len;
 
-	/* push string data*/
-	for (i = argc - 1; i >= 0; i--) {
-		length = strlen(argv[i]) + 1;
-		tot_len += length;
-		*esp -= length;
-		esp_address[i] = *esp;
-		for (k = 0; k < length - 1; k++) {
-			**(uint8_t **)esp = argv[i][k];
-			*esp += 1;
-		}
-		**(uint8_t **)esp = '\0';
-		*esp -= (length - 1);
+	strlcpy(stored_file_name, file_name, strlen(file_name) + 1);
+	token = strtok_r(stored_file_name, " ", &last);
+	argc = 0;
+	/* calculate argc */
+	while (token != NULL) {
+		argc += 1;
+		token = strtok_r(NULL, " ", &last);
+	}
+	argv = (char **)malloc(sizeof(char *) * argc);
+	/* store argv */
+	strlcpy(stored_file_name, file_name, strlen(file_name) + 1);
+	for (i = 0, token = strtok_r(stored_file_name, " ", &last); i < argc; i++, token = strtok_r(NULL, " ", &last)) {
+		len = strlen(token);
+		argv[i] = token;
+
 	}
 
-
+	/* push argv[argc-1] ~ argv[0] */
+	total_len = 0;
+	for (i = argc - 1; 0 <= i; i --) {
+		len = strlen(argv[i]);
+		*esp -= len + 1;
+		total_len += len + 1;
+		strlcpy(*esp, argv[i], len + 1);
+		argv[i] = *esp;
+	}
 	/* push word align */
-	word_align = 4 - (tot_len % 4);
-
-	if (word_align == 4) word_align = 0;
-	for (i = 0; i < word_align; i++) {
-		*esp -= 1;
-		**(uint8_t **)esp = 0;
-	}
-
-	/* convention, NULL pointer sentinel */
+	*esp -= total_len % 4 != 0 ? 4 - (total_len % 4) : 0;
+	/* push NULL */
 	*esp -= 4;
-	**(uint32_t**)esp = 0;
-
-	/* push address of string data */
-	for (i = argc - 1; i >= 0; i--) {
+	**(uint32_t **)esp = 0;
+	/* push address of argv[argc-1] ~ argv[0] */
+	for (i = argc - 1; 0 <= i; i--) {
 		*esp -= 4;
-		**(uint32_t**)esp = esp_address[i];
+		**(uint32_t **)esp = argv[i];
 	}
-	*esp -= 4;
-	**(uint32_t**)esp = *esp + 4;
+	/* push address of argv */
 
-	/* insert argc */
-	*esp -= 4;
-	**(uint32_t**)esp = argc;
 
-	/* insert return address */
 	*esp -= 4;
-	**(uint32_t**)esp = 0;
+	**(uint32_t **)esp = *esp + 4;
 
-	/* for debugging */
-   // hex_dump(0x20101234, *esp, 100, true);
+	/* push argc */
+	*esp -= 4;
+	**(uint32_t **)esp = argc;
+
+	/* push return address */
+	*esp -= 4;
+	**(uint32_t **)esp = 0;
+
+	free(argv);
 }
 
 struct
-	thread *get_child_thread(int pid)
+thread *get_child_thread(int pid)
 {
 	struct list_elem *e;
 	struct thread *t = NULL;
