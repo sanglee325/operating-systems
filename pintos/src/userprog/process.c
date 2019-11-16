@@ -27,10 +27,6 @@ static bool load(const char *cmdline, void(**eip) (void), void **esp);
 
 /* implemented functions */
 /* project 1 */
-void parse_arg(char *src, char *dest);
-void push_arg_stack(char *file_name, void **esp);
-//void parse_arg(const char *src, char dst[][50], int *argc);
-//void push_arg_stack(char argv[][50], int argc, void **esp);
 struct thread *get_child_thread(int pid);
 int remove_child_thread(struct thread *child_t);
 
@@ -43,8 +39,6 @@ process_execute(const char *file_name)
 {
 	char *fn_copy;
 	tid_t tid;
-	char args[50][50];
-	int tmp = 0;
 	struct list_elem *e;
 	struct thread *t;
 
@@ -58,9 +52,6 @@ process_execute(const char *file_name)
 		return TID_ERROR;
 	strlcpy(fn_copy, file_name, PGSIZE);
 
-	//parse_arg(file_name, args, &tmp);
-	//parse_arg(file_name, cmd_name);
-	//file_name = args[0];
 	char copy_file[256] = { 0, };
 	char *ptr = NULL, *token = NULL;
 
@@ -281,15 +272,6 @@ load(const char *file_name, void(**eip) (void), void **esp)
 	bool success = false;
 	int i;
 
-	/* implemented variables */
-	int argc = 0;
-	char argv[50][50] = { { 0, } };
-
-	/* write codes here! */
-	//if(file_name != NULL) printf("testing: %s\n", file_name);/////////////////
-	//parse_arg(file_name, argv, &argc);
-	//file_name = argv[0];
-
 	/* Allocate and activate page directory. */
 	t->pagedir = pagedir_create();
 	if (t->pagedir == NULL)
@@ -396,10 +378,7 @@ load(const char *file_name, void(**eip) (void), void **esp)
 		goto done;
 
 	/* file_name NULL exeception...? */
-	//push_arg_stack(argv, argc, esp);
-	//push_arg_stack(file_name, esp);
-	//printf("[testing]num: %d\n", num);
-	int length, word_align, tot_len = 0;
+	int length, tot_len = 0;
 	uint32_t esp_address[50];
 
 	for(i = num - 1; i >= 0; i--) {
@@ -591,115 +570,6 @@ install_page(void *upage, void *kpage, bool writable)
 	   address, then map our page there. */
 	return (pagedir_get_page(th->pagedir, upage) == NULL
 		&& pagedir_set_page(th->pagedir, upage, kpage, writable));
-}
-
-
-/* implemented functions 
-void
-parse_arg(const char *src, char dst[][50], int *argc)
-{
-	// tokenizing input, strtok is defined dont_use_strtok 
-	char *token, *ptr;
-	int idx = 0;
-	char copy_src[256] = { 0, };
-
-	strlcpy(copy_src, src, strlen(src) + 1);
-
-
-	token = strtok_r(copy_src, " \n", &ptr);
-   // printf("[testing]token: %s\n", token);
-	while (token)
-	{
-		strlcpy(dst[idx], token, 50);
-		//	printf("[testing]dst[%d]: %s\n", idx, dst[idx]);
-		token = strtok_r(NULL, " \n", &ptr);
-		idx++;
-	}
-
-	*argc = idx;
-}
-*/
-
-void parse_arg(char *src, char *dest) {
-	char *ptr;
-	int cnt=0;
-	dest[cnt]=strtok_r(src," ",&ptr);
-	while(1)
-	{
-		if(dest[cnt]==NULL)
-			break;
-		cnt++;
-		dest[cnt]=strtok_r(NULL," ",&ptr);
-	}
-	/*
-	   int i;
-	   strlcpy(dest, src, strlen(src) + 1);
-	   for (i = 0; dest[i] != '\0' && dest[i] != ' '; i++);
-	   dest[i] = '\0';
-	   */
-}
-
-void push_arg_stack(char *file_name, void **esp) {
-	char ** argv;
-	int argc;
-	int total_len;
-	char stored_file_name[256];
-	char *token;
-	char *last;
-	int i;
-	int len;
-
-	strlcpy(stored_file_name, file_name, strlen(file_name) + 1);
-	token = strtok_r(stored_file_name, " ", &last);
-	argc = 0;
-	/* calculate argc */
-	while (token != NULL) {
-		argc += 1;
-		token = strtok_r(NULL, " ", &last);
-	}
-	argv = (char **)malloc(sizeof(char *) * argc);
-	/* store argv */
-	strlcpy(stored_file_name, file_name, strlen(file_name) + 1);
-	for (i = 0, token = strtok_r(stored_file_name, " ", &last); i < argc; i++, token = strtok_r(NULL, " ", &last)) {
-		len = strlen(token);
-		argv[i] = token;
-
-	}
-
-	/* push argv[argc-1] ~ argv[0] */
-	total_len = 0;
-	for (i = argc - 1; 0 <= i; i --) {
-		len = strlen(argv[i]);
-		*esp -= len + 1;
-		total_len += len + 1;
-		strlcpy(*esp, argv[i], len + 1);
-		argv[i] = *esp;
-	}
-	/* push word align */
-	*esp -= total_len % 4 != 0 ? 4 - (total_len % 4) : 0;
-	/* push NULL */
-	*esp -= 4;
-	**(uint32_t **)esp = 0;
-	/* push address of argv[argc-1] ~ argv[0] */
-	for (i = argc - 1; 0 <= i; i--) {
-		*esp -= 4;
-		**(uint32_t **)esp = argv[i];
-	}
-	/* push address of argv */
-
-
-	*esp -= 4;
-	**(uint32_t **)esp = *esp + 4;
-
-	/* push argc */
-	*esp -= 4;
-	**(uint32_t **)esp = argc;
-
-	/* push return address */
-	*esp -= 4;
-	**(uint32_t **)esp = 0;
-
-	free(argv);
 }
 
 struct
