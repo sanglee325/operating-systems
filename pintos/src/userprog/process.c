@@ -282,8 +282,7 @@ load(const char *file_name, void(**eip) (void), void **esp)
 	int num = 0;
 	token[num] = strtok_r(file_name, " ", &ptr);
 
-	while(1)
-	{
+	while(1){
 		if(token[num] == NULL)
 			break;
 		num++;
