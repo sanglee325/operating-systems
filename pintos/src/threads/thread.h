@@ -119,9 +119,11 @@ struct thread
     uint32_t *pagedir;                  /* Page directory. */
 #endif
 
+    struct file *fd[128];
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
-    struct file *fd[128];
+
+	int64_t awake_tick;
   };
 
 /* If false (default), use round-robin scheduler.
