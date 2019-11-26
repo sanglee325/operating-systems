@@ -30,11 +30,23 @@ static void busy_wait (int64_t loops);
 static void real_time_sleep (int64_t num, int32_t denom);
 static void real_time_delay (int64_t num, int32_t denom);
 
+static struct list sleep_list;
+static size_t sleep_list_size;
 /* Sets up the timer to interrupt TIMER_FREQ times per second,
    and registers the corresponding interrupt. */
+bool less_func(const struct list_elem *a, const struct list_elem *b,void *aux){
+	struct thread *t1 = list_entry(a, struct thread, elem);
+	struct thread *t2 = list_entry(b, struct thread, elem);
+
+	if(t1->awake_tick < t2->awake_tick)
+		return true;
+	else
+		return false;
+}
 void
 timer_init (void) 
 {
+  list_init(&sleep_list);
   pit_configure_channel (0, 2, TIMER_FREQ);
   intr_register_ext (0x20, timer_interrupt, "8254 Timer");
 }
@@ -90,10 +102,21 @@ void
 timer_sleep (int64_t ticks) 
 {
   int64_t start = timer_ticks ();
+  enum intr_level old_level;
+ // enum intr_level old_level = intr_disable ();
 
   ASSERT (intr_get_level () == INTR_ON);
+
+  old_level = intr_disable ();
+  thread_current()->awake_tick = start + ticks;
+  list_insert_ordered(&sleep_list, &thread_current()->elem, less_func, NULL);
+  sleep_list_size++;
+  thread_block();
+  intr_set_level(old_level);
+  /*
   while (timer_elapsed (start) < ticks) 
     thread_yield ();
+  */
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
@@ -170,8 +193,38 @@ timer_print_stats (void)
 static void
 timer_interrupt (struct intr_frame *args UNUSED)
 {
+  struct thread *t;
+  struct list_elem *e;
+  enum intr_level old_level;
+
   ticks++;
+//  for (e = list_begin(&sleep_list); e != list_end(&sleep_list);) {
+
+  while (!list_empty(&sleep_list)) {
+	e = list_front(&sleep_list);
+	t = list_entry(e, struct thread, elem);
+	
+	if(ticks >= t->awake_tick) {
+		//printf("testing: %d\n", t->awake_tick);
+		old_level = intr_disable();
+		list_pop_front(&sleep_list);
+	//	e = list_remove(e);
+		thread_unblock(t);
+		intr_set_level(old_level);
+		sleep_list_size--;
+	}
+	else if(e == list_end(&sleep_list)) {
+		break;
+	}
+	else {
+		break;
+		printf("testing: timer_interrupt: else\n");
+	//	e = list_next(e);
+	}
+  }
+
   thread_tick ();
+  
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
