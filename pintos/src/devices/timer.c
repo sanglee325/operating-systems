@@ -198,17 +198,14 @@ timer_interrupt (struct intr_frame *args UNUSED)
   enum intr_level old_level;
 
   ticks++;
-//  for (e = list_begin(&sleep_list); e != list_end(&sleep_list);) {
 
   while (!list_empty(&sleep_list)) {
 	e = list_front(&sleep_list);
 	t = list_entry(e, struct thread, elem);
 	
 	if(ticks >= t->awake_tick) {
-		//printf("testing: %d\n", t->awake_tick);
 		old_level = intr_disable();
 		list_pop_front(&sleep_list);
-	//	e = list_remove(e);
 		thread_unblock(t);
 		intr_set_level(old_level);
 		sleep_list_size--;
@@ -218,9 +215,21 @@ timer_interrupt (struct intr_frame *args UNUSED)
 	}
 	else {
 		break;
-		printf("testing: timer_interrupt: else\n");
-	//	e = list_next(e);
+		//printf("testing: timer_interrupt: else\n");
 	}
+  }
+  
+  if(thread_prior_aging == true) {
+	  mlfqs_increment();
+	  for(e = list_begin(&all_list); e != list_end(&all_list); e = list_next(e)) {
+		  t = list_entry(e, struct thread, allelem);
+		  if(timer_ticks() % TIMER_FREQ == 0) {
+			  mlfqs_recent_cpu(t);
+			  mlfqs_load_avg();
+		  }
+		  if(timer_ticks() % 4 == 0)
+			  mlfqs_priority(t);
+	  }
   }
 
   thread_tick ();

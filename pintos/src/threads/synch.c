@@ -41,6 +41,15 @@
 
    - up or "V": increment the value (and wake up one waiting
      thread, if any). */
+bool cmp_sema_priority(const struct list_elem *a_, const struct list_elem *b_, void *aux UNUSED);
+
+bool
+cmp_sema_priority(const struct list_elem *a_, const struct list_elem *b_, void *aux UNUSED) {
+	struct thread *a = list_entry(a_, struct thread, elem);
+	struct thread *b = list_entry(b_, struct thread, elem);
+	return a->priority > b->priority;
+}
+
 void
 sema_init (struct semaphore *sema, unsigned value) 
 {
@@ -68,7 +77,8 @@ sema_down (struct semaphore *sema)
   old_level = intr_disable ();
   while (sema->value == 0) 
     {
-      list_push_back (&sema->waiters, &thread_current ()->elem);
+	  list_insert_ordered(&sema->waiters, &thread_current()->elem, cmp_sema_priority, NULL);
+      //list_push_back (&sema->waiters, &thread_current ()->elem);
       thread_block ();
     }
   sema->value--;
@@ -109,15 +119,34 @@ void
 sema_up (struct semaphore *sema) 
 {
   enum intr_level old_level;
+  struct thread *t, *max_t;
+  struct list_elem *e, *max_e;
 
   ASSERT (sema != NULL);
 
   old_level = intr_disable ();
-  if (!list_empty (&sema->waiters)) 
+  if (!list_empty (&sema->waiters)) { 
+	e = max_e = list_begin(&sema->waiters);
+	max_t = list_entry(max_e, struct thread, elem);
+	for(; e != list_end(&sema->waiters); e = list_next(e)) {
+		t = list_entry(e, struct thread, elem);
+		if(t->priority > max_t->priority) {
+			max_t = t;
+			max_e = e;
+		}
+	}
+	list_remove(max_e);
+	thread_unblock(max_t);
+	/*
     thread_unblock (list_entry (list_pop_front (&sema->waiters),
                                 struct thread, elem));
+	*/
+  }
+  
   sema->value++;
   intr_set_level (old_level);
+
+  thread_yield();
 }
 
 static void sema_test_helper (void *sema_);

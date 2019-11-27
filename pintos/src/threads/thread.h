@@ -4,9 +4,12 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
-#include "threads/synch.h" //?
-
+#include "threads/synch.h"
 #include "filesys/off_t.h"
+
+/* project #3 */
+extern bool thread_prior_aging;
+extern struct list all_list;
 
 struct file {
 	struct inode *inode;
@@ -124,6 +127,9 @@ struct thread
     unsigned magic;                     /* Detects stack overflow. */
 
 	int64_t awake_tick;
+
+	int nice;
+	int recent_cpu;
   };
 
 /* If false (default), use round-robin scheduler.
@@ -162,4 +168,8 @@ void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
+void mlfqs_priority(struct thread *t);
+void mlfqs_recent_cpu(struct thread *t);
+void mlfqs_load_avg(void);
+void mlfqs_increment(void);
 #endif /* threads/thread.h */
