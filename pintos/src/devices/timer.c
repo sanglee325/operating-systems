@@ -31,7 +31,6 @@ static void real_time_sleep (int64_t num, int32_t denom);
 static void real_time_delay (int64_t num, int32_t denom);
 
 static struct list sleep_list;
-static size_t sleep_list_size;
 /* Sets up the timer to interrupt TIMER_FREQ times per second,
    and registers the corresponding interrupt. */
 bool less_func(const struct list_elem *a, const struct list_elem *b,void *aux){
@@ -109,8 +108,8 @@ timer_sleep (int64_t ticks)
 
   old_level = intr_disable ();
   thread_current()->awake_tick = start + ticks;
-  list_insert_ordered(&sleep_list, &thread_current()->elem, less_func, NULL);
-  sleep_list_size++;
+  //list_insert_ordered(&sleep_list, &thread_current()->elem, less_func, NULL);
+  list_push_back(&sleep_list, &thread_current()->elem);
   thread_block();
   intr_set_level(old_level);
   /*
@@ -199,10 +198,19 @@ timer_interrupt (struct intr_frame *args UNUSED)
 
   ticks++;
 
-  while (!list_empty(&sleep_list)) {
-	e = list_front(&sleep_list);
+ // while (!list_empty(&sleep_list)) {
+ for(e = list_begin(&sleep_list); e != list_end(&sleep_list); ) {
+	//e = list_front(&sleep_list);
 	t = list_entry(e, struct thread, elem);
-	
+
+	if(t->awake_tick <= ticks) {
+		e = list_remove(e);
+		thread_unblock(t);
+	}
+	else {
+		e = list_next(e);
+	}
+	/*
 	if(ticks >= t->awake_tick) {
 		old_level = intr_disable();
 		list_pop_front(&sleep_list);
@@ -217,19 +225,27 @@ timer_interrupt (struct intr_frame *args UNUSED)
 		break;
 		//printf("testing: timer_interrupt: else\n");
 	}
+	*/
   }
   
-  if(thread_prior_aging == true) {
+  if(thread_prior_aging || thread_mlfqs) {
 	  mlfqs_increment();
+	  /*
 	  for(e = list_begin(&all_list); e != list_end(&all_list); e = list_next(e)) {
 		  t = list_entry(e, struct thread, allelem);
 		  if(timer_ticks() % TIMER_FREQ == 0) {
 			  mlfqs_recent_cpu(t);
-			  mlfqs_load_avg();
 		  }
 		  if(timer_ticks() % 4 == 0)
 			  mlfqs_priority(t);
+	  }*/
+	  if(timer_ticks() % TIMER_FREQ == 0) {
+		mlfqs_load_avg();
+		mlfqs_all_recent_cpu();
 	  }
+		  if(timer_ticks() % 4 == 0)
+			  mlfqs_all_priority();
+	  //}
   }
 
   thread_tick ();
