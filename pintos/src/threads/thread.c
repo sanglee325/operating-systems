@@ -104,6 +104,7 @@ thread_init (void)
 {
   ASSERT (intr_get_level () == INTR_OFF);
 
+  load_avg = LOAD_AVG_DEFAULT;
   lock_init (&tid_lock);
   list_init (&ready_list);
   list_init (&all_list);
@@ -111,6 +112,8 @@ thread_init (void)
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
   init_thread (initial_thread, "main", PRI_DEFAULT);
+  initial_thread->nice = NICE_DEFAULT;
+  initial_thread->recent_cpu = RECENT_CPU_DEFAULT;
   initial_thread->status = THREAD_RUNNING;
   initial_thread->tid = allocate_tid ();
 }
@@ -232,7 +235,7 @@ thread_create (const char *name, int priority,
   thread_unblock (t);
   
   // added for priority
-  if(priority > thread_current()->priority)
+  if(t->priority > thread_current()->priority)
 	  thread_yield();
 
   return tid;
@@ -380,7 +383,9 @@ void
 thread_set_priority (int new_priority) 
 {
   int prev_priority = thread_get_priority();
-
+  if(thread_mlfqs) {
+	  return;
+  }
   thread_current ()->priority = new_priority;
   
   if(new_priority < prev_priority) {
@@ -400,7 +405,30 @@ void
 thread_set_nice (int nice UNUSED) 
 {
   /* Not yet implemented. */
-//  thread_current()->nice = nice;
+  struct thread *t = thread_current();
+  int max_priority = -1;
+  t->nice = nice;
+
+  t->priority = sub_fp(sub_fp(add_mixed(0, PRI_MAX), div_mixed(t->recent_cpu, 4)),
+				mult_mixed(add_mixed(0, t->nice), 2)) / F;
+  //t->priority = sub_fp(sub_fp(add_mixed(PRI_MAX, 0), div_mixed(t->recent_cpu, 4)), mult_mixed(add_mixed(t->nice, 0), 2)) / F;
+  //t->priority = sub_fp(sub_mixed(div_mixed(t->recent_cpu, 4), PRI_MAX), mult_mixed(t->nice, 2));
+  if(t->priority > PRI_MAX) {
+	  t->priority = PRI_MAX;
+  }
+  if(t->priority < PRI_MIN) {
+	  t->priority = PRI_MIN;
+  }
+
+  if(!list_empty(&ready_list)) {
+	  t = list_entry(list_front(&ready_list), struct thread, elem);
+	  max_priority = t->priority;
+  }
+
+  if (thread_current()->priority < max_priority) {
+	  thread_yield();
+  }
+  //mlfqs_priority(thread_current());
 }
 
 /* Returns the current thread's nice value. */
@@ -415,7 +443,6 @@ thread_get_nice (void)
 int
 thread_get_load_avg (void) 
 {
-  /* Not yet implemented. */
   return mult_mixed(load_avg, 100) / F;
 }
 
@@ -423,21 +450,30 @@ thread_get_load_avg (void)
 int
 thread_get_recent_cpu (void) 
 {
-  /* Not yet implemented. */
   return mult_mixed(thread_current()->recent_cpu, 100) / F;
 }
 
+void mlfqs_all_priority() {
+	struct list_elem *e;
+	struct thread *t;
+
+	e = list_begin(&all_list);
+	while(e != list_end(&all_list)) {
+		t = list_entry(e, struct thread, allelem);
+		mlfqs_priority(t);
+		e = list_next(e);
+	}
+	
+}
 void mlfqs_priority(struct thread *t) {
 	struct thread *tmp;
-//	struct list_elem *e;
-
-//	for(e = list_begin(&all_list); e != list_end(&all_list); e = list_next(e)) {
-//		t = list_entry(e, struct thread, allelem);
 
 	int max_priority = -1;
 
 	if(t != idle_thread) {
-		t->priority = sub_fp(sub_mixed(div_mixed(t->recent_cpu, 4), PRI_MAX), mult_mixed(t->nice, 2));
+		t->priority = sub_fp(sub_fp(add_mixed(0, PRI_MAX), div_mixed(t->recent_cpu, 4)),
+				mult_mixed(add_mixed(0, t->nice), 2)) / F;
+	//	t->priority = sub_fp(sub_mixed(div_mixed(t->recent_cpu, 4), PRI_MAX), mult_mixed(t->nice, 2));
 		if(t->priority > PRI_MAX) {
 			t->priority = PRI_MAX;
 		}
@@ -445,7 +481,6 @@ void mlfqs_priority(struct thread *t) {
 			t->priority = PRI_MIN;
 		}
 	}
-//	}
 
 	if(!list_empty(&ready_list)) {
 		tmp = list_entry(list_front(&ready_list), struct thread, elem);
@@ -457,10 +492,20 @@ void mlfqs_priority(struct thread *t) {
 	}
 }
 
+void mlfqs_all_recent_cpu() {
+	struct list_elem *e;
+	struct thread *t;
+
+	e = list_begin(&all_list);
+	while(e != list_end(&all_list)) {
+		t = list_entry(e, struct thread, allelem);
+		mlfqs_recent_cpu(t);
+		e = list_next(e);
+	}
+}
 void mlfqs_recent_cpu(struct thread *t) {
 	if(t != idle_thread) {
-		t->recent_cpu = add_mixed(mult_fp(div_fp(mult_mixed(load_avg, 2), 
-						    add_mixed(mult_mixed(load_avg, 2), 1)), t->recent_cpu), t->nice);
+		t->recent_cpu = add_mixed(mult_fp(div_fp(mult_mixed(load_avg, 2), add_mixed(mult_mixed(load_avg, 2), 1)), t->recent_cpu), t->nice);
 	}
 }
 
@@ -469,8 +514,11 @@ void mlfqs_load_avg(void) {
 
 	if(thread_current() != idle_thread) {
 		ready_threads += 1;
+		//printf("[testing] ready_threads: %d\n", ready_threads);
 	}
-	load_avg  = add_fp(mult_mixed(59/60, load_avg), mult_mixed(1/60, ready_threads));
+	load_avg = div_mixed(add_mixed(mult_mixed(load_avg, 59), ready_threads), 60);
+	//	printf("[testing] load_avg: %d\n", load_avg);
+	//load_avg  = add_fp(mult_mixed(59/60, load_avg), mult_mixed(1/60, ready_threads));
 }
 
 void mlfqs_increment(void) {
@@ -592,8 +640,10 @@ init_thread (struct thread *t, const char *name, int priority)
   list_init(&(t->child_list));
   list_push_back(&(running_thread()->child_list), &(t->child_elem));
 
-  t->nice = NICE_DEFAULT;
-  t->recent_cpu = RECENT_CPU_DEFAULT;
+  t->nice = running_thread()->nice;
+  t->recent_cpu = running_thread()->recent_cpu;
+ // t->nice = NICE_DEFAULT;
+ // t->recent_cpu = RECENT_CPU_DEFAULT;
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and
