@@ -31,9 +31,11 @@ static void real_time_sleep (int64_t num, int32_t denom);
 static void real_time_delay (int64_t num, int32_t denom);
 
 static struct list sleep_list;
+
+bool less_func(const struct list_elem *a, const struct list_elem *b,void *aux UNUSED);
 /* Sets up the timer to interrupt TIMER_FREQ times per second,
    and registers the corresponding interrupt. */
-bool less_func(const struct list_elem *a, const struct list_elem *b,void *aux){
+bool less_func(const struct list_elem *a, const struct list_elem *b,void *aux UNUSED){
 	struct thread *t1 = list_entry(a, struct thread, elem);
 	struct thread *t2 = list_entry(b, struct thread, elem);
 
@@ -108,14 +110,9 @@ timer_sleep (int64_t ticks)
 
   old_level = intr_disable ();
   thread_current()->awake_tick = start + ticks;
-  //list_insert_ordered(&sleep_list, &thread_current()->elem, less_func, NULL);
-  list_push_back(&sleep_list, &thread_current()->elem);
+  list_insert_ordered(&sleep_list, &thread_current()->elem, less_func, NULL);
   thread_block();
   intr_set_level(old_level);
-  /*
-  while (timer_elapsed (start) < ticks) 
-    thread_yield ();
-  */
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
@@ -198,58 +195,34 @@ timer_interrupt (struct intr_frame *args UNUSED)
 
   ticks++;
 
- // while (!list_empty(&sleep_list)) {
- for(e = list_begin(&sleep_list); e != list_end(&sleep_list); ) {
-	//e = list_front(&sleep_list);
+  while (!list_empty(&sleep_list)) {
+	e = list_front(&sleep_list);
 	t = list_entry(e, struct thread, elem);
-
-	if(t->awake_tick <= ticks) {
-		e = list_remove(e);
-		thread_unblock(t);
-	}
-	else {
-		e = list_next(e);
-	}
-	/*
+	
 	if(ticks >= t->awake_tick) {
 		old_level = intr_disable();
 		list_pop_front(&sleep_list);
 		thread_unblock(t);
 		intr_set_level(old_level);
-		sleep_list_size--;
 	}
 	else if(e == list_end(&sleep_list)) {
 		break;
 	}
 	else {
 		break;
-		//printf("testing: timer_interrupt: else\n");
 	}
-	*/
   }
   
   if(thread_prior_aging || thread_mlfqs) {
 	  mlfqs_increment();
-	  /*
-	  for(e = list_begin(&all_list); e != list_end(&all_list); e = list_next(e)) {
-		  t = list_entry(e, struct thread, allelem);
-		  if(timer_ticks() % TIMER_FREQ == 0) {
-			  mlfqs_recent_cpu(t);
-		  }
-		  if(timer_ticks() % 4 == 0)
-			  mlfqs_priority(t);
-	  }*/
 	  if(timer_ticks() % TIMER_FREQ == 0) {
-		mlfqs_load_avg();
-		mlfqs_all_recent_cpu();
+		  mlfqs_load_avg();
+		  mlfqs_all_recent_cpu();
 	  }
-		  if(timer_ticks() % 4 == 0)
-			  mlfqs_all_priority();
-	  //}
+	  if(timer_ticks() % 4 == 0)
+		  mlfqs_all_priority();
   }
-
   thread_tick ();
-  
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
